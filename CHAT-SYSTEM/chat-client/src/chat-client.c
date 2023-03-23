@@ -10,17 +10,65 @@
 #include <string.h>
 #include <ncurses.h>	// for NCURSES library
 #include <sys/socket.h>	// for socket programming
+#include <netdb.h>		// for gethostbyname
 #include <arpa/inet.h>
 #include <errno.h>
+#include <stdlib.h>
 
 
 
+// move to common file
 #define MSG_SIZE	80
-#define ERROR		-1		// move to common file
+#define ERROR		-1		
+#define CMD_ERROR	-2
+#define HOST_SEARCH_FAIL -3
 
 
-int main()
+int main (int argc, char *argv[])
 {
+	char userID[21];
+	struct hostent *host;
+	
+	
+	// check command line args
+	if(argc != 3)
+	{
+		printf("USAGE: <chat-client> -user<userID> -server<serverName>\n");
+		return CMD_ERROR;
+	}
+	
+	strcpy(userID,argv[1]);	// user ID of the client connected
+	
+	printf("%s\n", argv[0]);
+	printf("%s\n", argv[1]);
+	printf("%s\n", argv[2]);
+	
+	char* returnVal = strstr(argv[2], "-server");	// point to the root folder of the project
+	//printf("%d\n", returnVal);	// returns 0 
+	
+	char* hostID = strrchr(returnVal, 'r');
+	
+	// point to last occurence of r in "server" - this is where IP address or server's name is passed as cmd arg
+	hostID++;
+	printf("%s\n", hostID);
+	
+	/*char hostIP[21];
+	int i = 0;
+	while(*r != '\0')
+	{
+		hostIP[i] = *r;
+		r++;
+		i++;
+	}
+	printf("%s\n", hostIP);*/
+	
+	// get host name passed as command line argument
+	if((host = gethostbyname(hostID)) == NULL)
+	{
+		printf("ERROR host ID: %s\n", strerror(errno));
+		return HOST_SEARCH_FAIL;
+	}
+	
 	// create socket
 	int server_socket;
 	struct sockaddr_in server;	// create sockaddr_in variable to connect to server
@@ -31,11 +79,9 @@ int main()
 	}
 	
 	// connect socket to server socket using IP address and port number
-	
-	
 	memset (&server, 0, sizeof (server));
-	server.sin_addr.s_addr = inet_addr("127.0.0.1");
 	server.sin_family = AF_INET;
+	memcpy (&server.sin_addr, host->h_addr, host->h_length); // copy the host's internal IP addr into the server_addr struct
 	server.sin_port = htons(PORT);
 	
 	// connect to remote host
