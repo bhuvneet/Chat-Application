@@ -5,13 +5,13 @@
 
 # final binary:
 
-./bin/chat-client: ./obj/chat-client.o
-		cc ./obj/chat-client.o -o ./bin/chat-client
+./bin/chat-client: ../common/obj/common.o ./obj/chat-client.o
+		cc ./obj/chat-client.o ../common/obj/common.o -o ./bin/chat-client
 	
 	
 # dependencies:	
 
-./obj/chat-client.o: ./src/chat-client.c
+./obj/chat-client.o: ./src/chat-client.c ../common/inc/common.h
 		cc -c ./src/chat-client.c -o ./obj/chat-client.o
 	
 # other targets:
