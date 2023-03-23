@@ -24,6 +24,8 @@ int main()
 	
 	int server_socket;
 	struct sockaddr_in server, client;
+	char buffer[1024] = { 0 };
+	char* hello = "Hello from server";	// for testing
 	
 	// create socket
 	server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -51,7 +53,7 @@ int main()
 		return ERROR;
   	}
   	
-  	// accept incoming connections
+  	// accept incoming connections - upto 10 clients
   	int client_len = sizeof(struct sockaddr_in);
   	int new_connection = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&client_len);
   	if(new_connection < 0)
@@ -59,7 +61,18 @@ int main()
   		printf("ERROR: %s\n", hstrerror(errno));
   		close(server_socket);
   	}
+  	
+  	// client will send their IP address and userID as the first message, once the connection is established
+  	
+  	// read message sent by client
+  	int readMsg = read(new_connection, buffer, 1024);
+  	printf("received from client: %s\n", buffer);
+  	
+  	// send a test message to client
+  	write(new_connection, hello, strlen(hello));
 	
+	// close socket
+	close(server_socket);
 	
 	return 0;
 }
