@@ -22,9 +22,12 @@ int main()
 	int server_socket, connected_clients[MAX_CLIENTS];
 	struct sockaddr_in server, client;
 	char buffer[1024] = { 0 };
+	char* returnVal;
 	char* hello = "Hello from server";	// for testing
-	ConnectedClients activeClient[MAX_CLIENTS];
+	int client_sockets[MAX_CLIENTS];
 	messageFromClient message;
+	int i = 0;
+	int readMsg;
 	
 	// create socket
 	server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -61,7 +64,7 @@ int main()
   		}
   		
 	  	int client_len = sizeof(struct sockaddr_in);
-	  	int new_connection = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&client_len);
+	  	int new_connection = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&client_len);	// accept new client
 	  	if(new_connection < 0)
 	  	{
 	  		printf("ERROR: %s\n", hstrerror(errno));
@@ -69,34 +72,70 @@ int main()
 	  	}
 	  	else
 	  	{
-	  		activeClient->clientIP[numClients] = new_connection;	// add connected client to struct array
+	  		client_sockets[numClients] = new_connection;	// add connected client to struct array	-- STORE SOCKETS
+	  		printf("%d:\n", client_sockets[numClients]);
 	  		numClients++;											// increment the number of clients connected
+
+			while(numClients > 0)
+			{
+				// read message received from client(s)
+			  	readMsg = read(new_connection, buffer, 1024);		// each client needs it own socket to able to send messages to server, this can be achieved using threads
+			  	printf("received from client: %s\n", buffer);
+			  	
+			  	// check if it's the first message sent -- "-userID|IPAddress"
+			  	// client will send their IP address and userID as the first message, once the connection is established
+			  	returnVal = strstr(buffer, "FIRST|");
+			  	if(returnVal)
+			  	{
+			  		// first message is sent by client to register it's userID and IP address
+			  		returnVal = strstr(buffer, "r");
+				  	returnVal++;
+				  	i = 0;
+				  	while(*returnVal != '|')
+				  	{
+				  		message.userID[i] = *returnVal;
+				  		returnVal++;
+				  		i++;
+				  	}
+				  	message.userID[i] = '\0';	// null terminate the string
+				  	
+				  	printf("userID: %s\n", message.userID);
+				  	
+				  	returnVal = strrchr(buffer, '|');
+				  	returnVal++;
+				  	i = 0;
+				  	while(*returnVal != '\0')	// while pointer hasn't reached end of string
+				  	{
+				  		message.ip.clientIP[i] = *returnVal;
+				  		returnVal++;
+				  		i++;
+				  	}
+				  	message.ip.clientIP[i] = '\0';	// null terminate the string
+				  	printf("IP: %s\n", message.ip.clientIP);
+			  	}
+			  	
+			  	// if message received is <<bye>>, remove client from array	  	
+			  	
+			  	memset(buffer,0,1024);
+			  	
+			  	// send message to clients
+			  	write (new_connection, buffer, strlen(buffer));
+			}
 	  		
-	  		// first message sent by connected client contains message like --> "-userID|IPAddress"
-	  		// separate the information received and save in the struct array to keep track of connected clients
-		  	int readMsg = read(new_connection, buffer, 1024);
-		  	printf("received from client: %s\n", buffer);
 		  	
-		  	char* returnVal = strstr(buffer, "r");
-		  	returnVal++;
-		  	int i = 0;
-		  	while(*returnVal != '|')
-		  	{
-		  		message.userID[i] = *returnVal;
-		  		returnVal++;
-		  		i++;
-		  	}
-		  	message.userID[i] = '\0';	// null terminate the string
-		  	
-		  	printf("userID: %s\n", message.userID);
+		  	while(numClients > 0)
+	  		{
+	  			// as long as there are at least 1 client connected
+	  			// receive messages from connected clients
+  				// send response to all clients except the one sending the message
+	  		}
 	  	}
   	}
 
-  	// client will send their IP address and userID as the first message, once the connection is established
   	
   	
   	
-  	
+	// remove all client sockets
 	
 	// close socket
 	close(server_socket);
