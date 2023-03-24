@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <unistd.h>		// to close socket
 
 
 
@@ -28,6 +29,14 @@ int main (int argc, char *argv[])
 {
 	char userID[21];
 	struct hostent *host;
+	int endSession 		= 1;
+	int msgRecd 		= 0;
+	char message[MSG_SIZE];	
+	int count 			= 0;
+	int server_socket;
+	struct sockaddr_in server, addr;	// create sockaddr_in variable to connect to server
+	socklen_t len = sizeof(addr);
+	char myIPaddress[21];					// to send to server client's IP address as first message'
 	
 	
 	// check command line args
@@ -52,16 +61,6 @@ int main (int argc, char *argv[])
 	hostID++;
 	printf("%s\n", hostID);
 	
-	/*char hostIP[21];
-	int i = 0;
-	while(*r != '\0')
-	{
-		hostIP[i] = *r;
-		r++;
-		i++;
-	}
-	printf("%s\n", hostIP);*/
-	
 	// get host name passed as command line argument
 	if((host = gethostbyname(hostID)) == NULL)
 	{
@@ -70,9 +69,6 @@ int main (int argc, char *argv[])
 	}
 	
 	// create socket
-	int server_socket;
-	struct sockaddr_in server;	// create sockaddr_in variable to connect to server
-	
 	if((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)	// initialize socket using Address Family (IP version 4), Socket Stream (TCP protocol), and Protocol 0 (IP protocol).
 	{
 		printf("ERROR: %s\n", strerror(errno));
@@ -93,37 +89,55 @@ int main (int argc, char *argv[])
 	{
 		printf("connected with server!\n");
 		
+		// send first message to server for userID and IP address
+		getsockname(server_socket, (struct sockaddr *)&addr, &len);		// send server IP address of this client
+		
+		strcpy(myIPaddress, inet_ntoa(addr.sin_addr));
+		
+		strcpy(message, userID);
+		strcat(message, "|");
+		strcat(message, myIPaddress);
+		
+		write (server_socket, message, strlen (message));
+		strcpy(message, "\0"); 	// reset string
+
+		// initializes the curses system and alloacte memory for window
+		//initscr();								
+	
+		/*while(endSession)
+		{
+			//refresh();							// print it on to the real screen
+			message[count] = getch();
+			count++;
+			
+			// check if the user wants to quit
+			if(strcmp(message,"<<bye>>") == 0)
+			{
+				// send final message to server
+				write (server_socket, message, strlen (message));
+				endSession = 0;
+			}
+			
+			if(count == 80)
+			{
+				// send message to server
+				write (server_socket, message, strlen (message));
+				
+				// reset count to 0, to recount
+				count = 0;
+			}
+		}*/
+		
+		//endwin();							// End curses mode - this will free memory taken by ncurses sub0system and its data structures and put terminal back in normal mode.
+		
 		// create one thread to send outgoing message
 		
 		// create another thread to read from socket
-	}
-	
-	
-	
-	// send message to server socket
-	
-	/*initscr();							// this function initializes the curses system and alloacte memory for window
-	
-	char message[MSG_SIZE];
-	
-	int count = 0;
-	while (count < 80)					// take input while user doesn't enter ">>bye<<"
-	{
-		refresh();							/* Print it on to the real screen */
-		//message[count] = getch();
-		//count++;
 		
-		// if user enters "<<bye>>" shutdown client before sending one last message to server
-	//}
+		// close client socket
+		close(server_socket);
+	}	
 	
-	/*endwin();							// End curses mode - this will free memory taken by ncurses sub0system and its data structures and put terminal back in normal mode.
-	
-	printf("%d: \n", count);
-	printf("%s: \n", message);*/
-	
-	
-	// close client socket
-
 	return 0;
 	
 }
