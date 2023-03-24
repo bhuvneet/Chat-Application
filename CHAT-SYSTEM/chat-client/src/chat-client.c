@@ -31,7 +31,7 @@ int main (int argc, char *argv[])
 	struct hostent *host;
 	int endSession 		= 1;
 	int msgRecd 		= 0;
-	char message[MSG_SIZE];	
+	char message[1024];	
 	int count 			= 0;
 	int server_socket;
 	struct sockaddr_in server, addr;	// create sockaddr_in variable to connect to server
@@ -92,41 +92,60 @@ int main (int argc, char *argv[])
 		// send first message to server for userID and IP address
 		getsockname(server_socket, (struct sockaddr *)&addr, &len);		// send server IP address of this client
 		
-		strcpy(myIPaddress, inet_ntoa(addr.sin_addr));
+		strcpy(myIPaddress, inet_ntoa(addr.sin_addr));	// get client's IP'
 		
-		strcpy(message, userID);
+		strcpy(message, "FIRST|");
+		strcat(message, userID);
 		strcat(message, "|");
 		strcat(message, myIPaddress);
 		
-		write (server_socket, message, strlen (message));
-		strcpy(message, "\0"); 	// reset string
+		//write (server_socket, message, strlen (message));
+		memset(message, 0, 1024);
 
 		// initializes the curses system and alloacte memory for window
 		//initscr();								
 	
-		/*while(endSession)
+		while(endSession)
 		{
+			fflush(stdout);
+			
 			//refresh();							// print it on to the real screen
-			message[count] = getch();
-			count++;
 			
-			// check if the user wants to quit
-			if(strcmp(message,"<<bye>>") == 0)
+			// read input from terminal
+			if(fgets(message, 1024, stdin) != NULL)
 			{
-				// send final message to server
-				write (server_socket, message, strlen (message));
-				endSession = 0;
-			}
-			
-			if(count == 80)
-			{
-				// send message to server
-				write (server_socket, message, strlen (message));
+				if (message[strlen (message) - 1] == '\n') message[strlen (message) - 1] = '\0';	// remove new line character
 				
-				// reset count to 0, to recount
-				count = 0;
-			}
-		}*/
+				int len = strlen(message);
+				printf("%d\n", len);
+				
+				//message[count] = getch();
+				//count++;
+				if(len == 80)
+				{
+					// send message to server
+					write (server_socket, message, strlen (message));
+				}
+				else
+				{
+					// send message to server
+					send (server_socket, message, strlen (message), 0);
+					fflush (stdout);
+				}
+				
+				// check if the user wants to quit
+				if(strcmp(message,"<<bye>>") == 0)
+				{
+					fflush (stdout);
+					// send final message to server
+					write (server_socket, message, strlen (message));
+					endSession = 0;
+				}
+				
+				memset(message, 0, 1024);
+			}			
+			
+		}
 		
 		//endwin();							// End curses mode - this will free memory taken by ncurses sub0system and its data structures and put terminal back in normal mode.
 		
