@@ -99,10 +99,7 @@ int main (int argc, char *argv[])
 		strcat(message, myIPaddress);
 		
 		write (server_socket, message, strlen (message));
-		
-		
-		msgRecd = read (server_socket, message, 1024);
-		printf("message received from server: %s\n", message);
+		strcpy(message, "\0"); 	// reset string
 
 		// initializes the curses system and alloacte memory for window
 		//initscr();								
