@@ -25,7 +25,7 @@ int main()
 	char* returnVal;
 	char* hello = "Hello from server";	// for testing
 	int client_sockets[MAX_CLIENTS];
-	messageFromClient message;
+	MessageFromClient message;
 	int i = 0;
 	int readMsg;
 	
