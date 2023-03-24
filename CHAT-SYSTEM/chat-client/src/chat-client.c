@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>		// to close socket
+#include <pthread.h>
 
 
 
@@ -23,6 +24,9 @@
 #define ERROR		-1		
 #define CMD_ERROR	-2
 #define HOST_SEARCH_FAIL -3
+
+void *sendMessage(void* socket);
+void *recvMessage(void* socket);
 
 
 int main (int argc, char *argv[])
@@ -34,9 +38,10 @@ int main (int argc, char *argv[])
 	char message[1024];	
 	int count 			= 0;
 	int server_socket;
-	struct sockaddr_in server, addr;	// create sockaddr_in variable to connect to server
+	struct sockaddr_in server, addr;		// create sockaddr_in variable to connect to server
 	socklen_t len = sizeof(addr);
 	char myIPaddress[21];					// to send to server client's IP address as first message'
+	pthread_t send_thread, recv_thread;		// threads to send and receive messages
 	
 	
 	// check command line args
@@ -99,53 +104,30 @@ int main (int argc, char *argv[])
 		strcat(message, "|");
 		strcat(message, myIPaddress);
 		
-		//write (server_socket, message, strlen (message));
+		write (server_socket, message, strlen (message));
 		memset(message, 0, 1024);
 
 		// initializes the curses system and alloacte memory for window
-		//initscr();								
-	
-		while(endSession)
+		//initscr();
+		
+		void* arg;
+		// launch sending thread to send messages to server
+		if(pthread_create(&send_thread, NULL, sendMessage, (void *)&server_socket))
 		{
-			fflush(stdout);
-			
-			//refresh();							// print it on to the real screen
-			
-			// read input from terminal
-			if(fgets(message, 1024, stdin) != NULL)
-			{
-				if (message[strlen (message) - 1] == '\n') message[strlen (message) - 1] = '\0';	// remove new line character
-				
-				int len = strlen(message);
-				printf("%d\n", len);
-				
-				//message[count] = getch();
-				//count++;
-				if(len == 80)
-				{
-					// send message to server
-					write (server_socket, message, strlen (message));
-				}
-				else
-				{
-					// send message to server
-					send (server_socket, message, strlen (message), 0);
-					fflush (stdout);
-				}
-				
-				// check if the user wants to quit
-				if(strcmp(message,"<<bye>>") == 0)
-				{
-					fflush (stdout);
-					// send final message to server
-					write (server_socket, message, strlen (message));
-					endSession = 0;
-				}
-				
-				memset(message, 0, 1024);
-			}			
-			
-		}
+			printf("ERROR host ID: %s\n", strerror(errno));
+			return 0;
+		}	
+		
+		if(pthread_create(&recv_thread, NULL, recvMessage, (void *)&server_socket))
+		{
+			printf("ERROR host ID: %s\n", strerror(errno));
+			return 0;
+		}		
+		
+		// wait for threads to finish
+		pthread_join(send_thread, NULL);
+		pthread_join(recv_thread, NULL);					
+
 		
 		//endwin();							// End curses mode - this will free memory taken by ncurses sub0system and its data structures and put terminal back in normal mode.
 		
@@ -159,4 +141,75 @@ int main (int argc, char *argv[])
 	
 	return 0;
 	
+}
+
+void *sendMessage(void* socket)
+{
+	char message[1024];		// use constant
+	int endSession = 1;
+	int server_socket = *((int*)socket);
+	
+	while(endSession)
+	{
+		fflush(stdout);
+		
+		//refresh();							// print it on to the real screen
+		
+		// read input from terminal
+		if(fgets(message, 1024, stdin) != NULL)
+		{
+			if (message[strlen (message) - 1] == '\n') message[strlen (message) - 1] = '\0';	// remove new line character
+			
+			int len = strlen(message);
+			printf("%d\n", len);
+
+			if(len == 80)
+			{
+				// send message to server
+				write (server_socket, message, strlen (message));
+			}
+			else if(strcmp(message,"<<bye>>") == 0) // check if the user wants to quit
+			{
+				// send final message to server
+				write (server_socket, message, strlen (message));
+				endSession = 0;
+			}
+			else
+			{
+				// send message to server
+				send (server_socket, message, strlen (message), 0);
+			}
+
+			memset(message, 0, 1024);
+		}			
+		
+	}
+	
+	pthread_exit(NULL);
+
+}
+
+
+void *recvMessage(void* socket)
+{
+	char message[1024];
+	int readMsg;
+	int server_socket = *((int*)socket);
+	
+	while(1)
+	{
+		readMsg = read(server_socket, message, 1024);
+		
+		if(readMsg > 0)
+		{
+			printf("Message RCD: %s\n", message);
+		}
+		else if(readMsg == 0)
+		{
+			printf("Server disconnected\n");
+			break;
+		}
+	}
+	
+	pthread_exit(NULL);
 }

@@ -6,7 +6,7 @@
 # final binary:
 
 ./bin/chat-client: ../common/obj/common.o ./obj/chat-client.o
-		cc ./obj/chat-client.o -lncurses ../common/obj/common.o -o ./bin/chat-client
+		cc ./obj/chat-client.o -lncurses ../common/obj/common.o -o ./bin/chat-client -lpthread
 	
 	
 # dependencies:	
