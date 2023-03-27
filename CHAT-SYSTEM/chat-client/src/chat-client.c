@@ -209,6 +209,8 @@ void *recvMessage(void* socket)
 			printf("Server disconnected\n");
 			break;
 		}
+		
+		memset(message, 0, 1024);
 	}
 	
 	pthread_exit(NULL);
