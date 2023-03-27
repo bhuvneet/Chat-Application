@@ -25,8 +25,11 @@
 #define CMD_ERROR	-2
 #define HOST_SEARCH_FAIL -3
 
+// function prototypes
 void *sendMessage(void* socket);
 void *recvMessage(void* socket);
+char* formatMsg(char* message, int sender);
+void getCurrentTime(char* whatTime);
 
 
 int main (int argc, char *argv[])
@@ -161,7 +164,6 @@ void *sendMessage(void* socket)
 			if (message[strlen (message) - 1] == '\n') message[strlen (message) - 1] = '\0';	// remove new line character
 			
 			int len = strlen(message);
-			printf("%d\n", len);
 
 			if(len == 80)
 			{
@@ -202,16 +204,50 @@ void *recvMessage(void* socket)
 		
 		if(readMsg > 0)
 		{
+			// format message once received, before displaying
 			printf("Message RCD: %s\n", message);
+			memset(message,0,1024);
+			fflush(stdout);
 		}
 		else if(readMsg == 0)
 		{
 			printf("Server disconnected\n");
 			break;
 		}
-		
-		memset(message, 0, 1024);
 	}
 	
 	pthread_exit(NULL);
 }
+
+
+char* formatMsg(char* message, int sender)
+{
+
+}
+
+void getCurrentTime(char* whatTime)
+{
+	time_t currentTime;
+	struct tm *timeIs;
+	
+	time(&currentTime);
+	timeIs = localtime(&currentTime);
+	
+	strftime(whatTime, 9, "%H:%M:%S", timeIs);
+}
+
+/*
+			// IP ADDRESS [USERID] >> MESSAGE (HH:MM:SS)	IP and userID of sender
+			printf("%s\n", connected_client[i].clientIP);
+			
+			sprintf(sendMsg, "%s", connected_client[i].clientIP);
+			strcat(sendMsg, " ");		
+			sprintf(sendMsg, "[%s]", connected_client[i].userID);
+			strcat(sendMsg, " ");		
+			strcat(sendMsg, ">> ");
+			strcat(sendMsg, messageToSend);
+			strcat(sendMsg, " ");		
+			strcat(sendMsg, whatTime);
+			
+			printf("message to send: %s\n", sendMsg);
+*/
