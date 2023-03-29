@@ -113,7 +113,7 @@ void *client_handler(void* client_socket)
 	{
 		printf("received from client: %s\n", buffer);
 		
-		// check if it's the first message sent -- "-userID|IPAddress"
+		// check if it's the first message sent -- "FIRST|-userID|IPAddress"
 		// client will send their IP address and userID as the first message, once the connection is established
 		returnVal = strstr(buffer, "FIRST|");
 	  	if(returnVal)
