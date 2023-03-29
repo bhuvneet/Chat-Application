@@ -170,7 +170,7 @@ void *sendMessage(void* socket)
 				// send message to server
 				write (server_socket, message, strlen (message));
 			}
-			else if(strcmp(message,"<<bye>>") == 0) // check if the user wants to quit
+			else if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
 			{
 				// send final message to server
 				write (server_socket, message, strlen (message));
