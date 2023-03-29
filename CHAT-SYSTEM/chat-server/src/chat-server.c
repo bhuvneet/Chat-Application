@@ -5,6 +5,8 @@
 	Description:
 */
 
+#define _REENTRANT
+
 #include "../../common/inc/common.h"
 #include "../inc/chat-server.h"
 #include <stdio.h>
@@ -83,7 +85,16 @@ int main()
 			
 			numClients++;		// increment the number of clients connected
 	  	}
+
+		// TODO stop server when the number of clients is zero
+		// this part of the code isn't working
+		if (numClients == 0)
+		{
+			break;	// stop listening to new clients
+		}
   	}
+
+	printf("Stop listening");
   	
   	int numOfThreads = sizeof(client_threads) / sizeof(client_threads[0]);
 
@@ -92,6 +103,8 @@ int main()
 	{
 		pthread_join(client_threads[i], NULL);
 	}
+
+	printf("Closing the server");
 	
 	
 	// close socket
@@ -144,11 +157,19 @@ void *client_handler(void* client_socket)
 		  	connected_client[numClients].clientIP[i] = '\0';	// null terminate the string
 		  	printf("IP: %s\n", connected_client[numClients].clientIP);
 	  	}
-	  	else if (strcmp(buffer, "<<bye>>") == 0){
+	  	else if (strcmp(buffer, ">>bye<<") == 0){
 	  		
-	  		// TODO -- remove client from array
-	  		removeClientFromArray(client_sock);
-			printf("Client disconnected.\n");
+	  		// remove client from array
+			int client_removed = removeClientFromArray(client_sock);
+	  		if (client_removed == ERROR)
+			{
+				printf("ERROR: Client not found.\n");
+			}
+			else
+			{
+				printf("Client disconnected.\n");
+				break;
+			}
 		}
 	  	else
 	  	{
@@ -160,6 +181,7 @@ void *client_handler(void* client_socket)
 		memset(buffer, 0, 1024);
 	}
 	
+	close(client_sock);	// close client connection
 	pthread_exit(NULL);
 }
 
@@ -183,8 +205,47 @@ void broadcast_message(int sender, char* messageToSend)
 
 
 
-// TODO
+// remove sender from array and update the number of clients
 int removeClientFromArray(int sender)
 {
-	
+	// flag to determine if the client was found
+	int client_found = FALSE; // false	
+		
+	// get size of array connected_client
+	int size = sizeof(connected_client) / sizeof(*connected_client);
+	int position;
+	int client_removed;
+
+
+	// search sender in the array connected_client
+	for (int i; i < size; i++)
+	{
+		if (connected_client[i].client_socket == sender)
+		{
+			client_found = TRUE; // true
+			position = i;			// get index of element
+			break;
+		}	
+	}
+
+	// if client is in the list, delete it
+	// if not, return error
+	if (client_found == TRUE)
+	{
+		for (int i = position; i < size; i++)
+		{
+			connected_client[position] = connected_client[position + 1];
+		}
+		
+		numClients--;	// update number of clients
+
+		client_removed = TRUE;	
+	}
+	else
+	{
+		client_removed = ERROR;	// sender not in the list
+	}
+
+	return client_removed;
 }
+
