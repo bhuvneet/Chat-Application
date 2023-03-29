@@ -18,12 +18,12 @@
 #include <pthread.h>
 
 
-
 // move to common file
 #define MSG_SIZE	80
 #define ERROR		-1		
 #define CMD_ERROR	-2
 #define HOST_SEARCH_FAIL -3
+#define h_addr h_addr_list[0] /* for backward compatibility */
 
 // function prototypes
 void *sendMessage(void* socket);
@@ -34,11 +34,12 @@ void getCurrentTime(char* whatTime);
 
 int main (int argc, char *argv[])
 {
+	// make constants for array lengths
 	char userID[21];
 	struct hostent *host;
 	int endSession 		= 1;
 	int msgRecd 		= 0;
-	char message[1024];	
+	char message[81];	
 	int count 			= 0;
 	int server_socket;
 	struct sockaddr_in server, addr;		// create sockaddr_in variable to connect to server
@@ -54,7 +55,8 @@ int main (int argc, char *argv[])
 		return CMD_ERROR;
 	}
 	
-	strcpy(userID,argv[1]);	// user ID of the client connected
+	// validate arg lengths
+	strcpy(userID, argv[1]);	// user ID of the client connected
 	
 	printf("%s\n", argv[0]);
 	printf("%s\n", argv[1]);
@@ -151,7 +153,7 @@ int main (int argc, char *argv[])
 
 void *sendMessage(void* socket)
 {
-	char message[1024];		// use constant
+	char message[1024] = {"\0"};		// use constant
 	int endSession = 1;
 	int server_socket = *((int*)socket);
 	
@@ -201,6 +203,7 @@ void *recvMessage(void* socket)
 	int readMsg;
 	int server_socket = *((int*)socket);
 	
+	memset(message, 0, 1024);	// reset buffer
 	while(1)
 	{
 		readMsg = read(server_socket, message, 1024);
