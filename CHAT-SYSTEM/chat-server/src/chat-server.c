@@ -33,8 +33,6 @@ int main()
 {	
 	int server_socket;
 	struct sockaddr_in server, client;
-	HowMany howMany;
-	howMany.howManyClients = 0;
 	
 	int clientSockets[MAX_CLIENTS];	// data structure holds all sockets
 	pthread_t client_threads[MAX_CLIENTS];
