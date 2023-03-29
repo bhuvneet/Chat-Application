@@ -24,4 +24,3 @@ typedef struct
 {
 	char prevMsgs[1024];
 }prevMsgs;
-

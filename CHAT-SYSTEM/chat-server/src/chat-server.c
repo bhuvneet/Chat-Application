@@ -26,12 +26,17 @@ ConnectedClients connected_client[MAX_CLIENTS];
 void *client_handler(void* client_socket);
 void broadcast_message(int sender, char* messageToSend);
 int removeClientFromArray(int sender);
+void formatMessage(char* message, int whichClient, int isSender);
+void getCurrentTime(char* whatTime);
 
 int main()
 {	
 	int server_socket;
 	struct sockaddr_in server, client;
+	HowMany howMany;
+	howMany.howManyClients = 0;
 	
+	int clientSockets[MAX_CLIENTS];	// data structure holds all sockets
 	pthread_t client_threads[MAX_CLIENTS];
 	//ClientThreads client_thread;
 	
@@ -74,14 +79,15 @@ int main()
 	  	}
 	  	else
 	  	{
-	  		connected_client[numClients].client_socket = new_connection;	// add connected client to list
-	  		printf("%d:\n", connected_client[numClients].client_socket);
+	  		clientSockets[numClients] = new_connection;	// add connected client to list
+	  		printf("socket # %d:\n", clientSockets[numClients]);
 
 			if (pthread_create(&client_threads[numClients], NULL, client_handler, (void *)&new_connection))
 			{
 				printf("ERROR host ID: %s\n", strerror(errno));
 				return 0;
 			}
+			printf("Client #: %d\n", numClients);
 			
 			numClients++;		// increment the number of clients connected
 	  	}
@@ -117,7 +123,7 @@ int main()
 void *client_handler(void* client_socket)
 {
 	int client_sock = *(int *)client_socket;
-	char buffer[1024];
+	char buffer[1024] = {"\0"};
 	char* returnVal;
 	int readMsg;
 	int i = 0;
@@ -131,31 +137,31 @@ void *client_handler(void* client_socket)
 		returnVal = strstr(buffer, "FIRST|");
 	  	if(returnVal)
 	  	{
+	  		connected_client[numClients - 1].client_socket = client_sock;	// add client socket to structure
+	  		
 	  		// first message is sent by client to register it's userID and IP address
 	  		returnVal = strstr(buffer, "r");
 		  	returnVal++;
 		  	i = 0;
 		  	while(*returnVal != '|')
 		  	{
-		  		connected_client[numClients].userID[i] = *returnVal;
+		  		connected_client[numClients - 1].userID[i] = *returnVal;
 		  		returnVal++;
 		  		i++;
 		  	}
-		  	connected_client[numClients].userID[i] = '\0';	// null terminate the string
-		  	
-		  	printf("userID: %s\n", connected_client[numClients].userID);
+		  	connected_client[numClients - 1].userID[i] = '\0';	// null terminate the string
 		  	
 		  	returnVal = strrchr(buffer, '|');
 		  	returnVal++;
 		  	i = 0;
 		  	while(*returnVal != '\0')	// while pointer hasn't reached end of string
 		  	{
-		  		connected_client[numClients].clientIP[i] = *returnVal;
+		  		connected_client[numClients - 1].clientIP[i] = *returnVal;
 		  		returnVal++;
 		  		i++;
 		  	}
-		  	connected_client[numClients].clientIP[i] = '\0';	// null terminate the string
-		  	printf("IP: %s\n", connected_client[numClients].clientIP);
+		  	connected_client[numClients - 1].clientIP[i] = '\0';	// null terminate the string
+		  	
 	  	}
 	  	else if (strcmp(buffer, ">>bye<<") == 0){
 	  		
@@ -189,22 +195,80 @@ void *client_handler(void* client_socket)
 void broadcast_message(int sender, char* messageToSend)
 {
 	char sendMsg[1024];
-	char whatTime[TIME_LEN];
 	
-	printf("clients: %d\n", numClients);
+	int senderIndx;
 	
+	strcpy(sendMsg, messageToSend);	// keep track of the original message sent by sender
+	
+	// loop to get sender's IP, userID, message to create the formatted message
+	for(int i = 0; i < numClients; i++)
+	{
+		if(connected_client[i].client_socket == sender)
+		{			
+			formatMessage(messageToSend, i, 1);
+			senderIndx = i;	// get sender's index
+			
+			// send a formatted reponse to sender
+			write(connected_client[i].client_socket, messageToSend , strlen(messageToSend));	
+		}
+	}
+	printf("sent: %s\n",messageToSend);
+	
+	// server has knowledge of all the client's connected to it (their userID, IP ect.)
+	formatMessage(sendMsg, senderIndx, 0);
+			
+	// send formatted message to each client
 	for(int i = 0; i < numClients; i++)
 	{
 		if(connected_client[i].client_socket != sender)
-		{	
-			// send a reponse to all clients excpet the sender
-			write(connected_client[i].client_socket, messageToSend , strlen(messageToSend));
-			printf("sent: %s\n",messageToSend);
+		{			
+			// send a formatted reponse to all clients except the sender
+			write(connected_client[i].client_socket, sendMsg , strlen(sendMsg));
 		}
 	}
+	printf("sent: %s\n",sendMsg);
 }
 
 
+void formatMessage(char* message, int whichClient, int isSender)
+{
+	char whatTime[TIME_LEN];
+	getCurrentTime(whatTime);
+	
+	char senderMessage[1024];
+	strcpy(senderMessage, message);
+	
+	// IP, userID and message should sender's which will be sent to all connected clients	
+	memset(message, 0, 1024);
+
+	strcpy(message, connected_client[whichClient].clientIP);	// get sender's IP
+	strcat(message, " [");	// whitespace
+	strcat(message, connected_client[whichClient].userID);		// get sender's ID
+	strcat(message, "] ");	// whitespace
+	if(isSender)
+	{
+		strcat(message, ">> ");
+	}
+	else
+	{
+		strcat(message, "<< ");
+	}
+	strcat(message, senderMessage);
+	strcat(message, " (");
+	strcat(message, whatTime);
+	strcat(message, ")");
+}
+
+void getCurrentTime(char* whatTime)
+{
+	time_t currentTime;
+	struct tm *timeIs;
+	
+	time(&currentTime);
+	timeIs = localtime(&currentTime);
+	
+	strftime(whatTime, 9, "%H:%M:%S", timeIs);
+}
 
 // remove sender from array and update the number of clients
 int removeClientFromArray(int sender)
