@@ -199,6 +199,7 @@ void broadcast_message(int sender, char* messageToSend)
 		{	
 			// send a reponse to all clients excpet the sender
 			write(connected_client[i].client_socket, messageToSend , strlen(messageToSend));
+			printf("sent: %s\n",messageToSend);
 		}
 	}
 }

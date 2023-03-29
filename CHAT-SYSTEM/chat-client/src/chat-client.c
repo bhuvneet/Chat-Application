@@ -102,12 +102,15 @@ int main (int argc, char *argv[])
 		
 		strcpy(myIPaddress, inet_ntoa(addr.sin_addr));	// get client's IP'
 		
+		memset(message, 0, 1024);
 		strcpy(message, "FIRST|");
 		strcat(message, userID);
 		strcat(message, "|");
 		strcat(message, myIPaddress);
+		strcat(message, "\0");	// null terminate the string
 		
 		write (server_socket, message, strlen (message));
+		printf("sent: %s\n",message);
 		memset(message, 0, 1024);
 
 		// initializes the curses system and alloacte memory for window
