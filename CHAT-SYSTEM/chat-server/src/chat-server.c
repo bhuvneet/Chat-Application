@@ -160,6 +160,11 @@ void *client_handler(void* client_socket)
 		  	}
 		  	connected_client[numClients - 1].clientIP[i] = '\0';	// null terminate the string
 		  	
+		  	printf("Clients %d\n", numClients);
+		  	printf("Socket: %d\n", connected_client[numClients - 1].client_socket);
+		  	printf("ID: %s\n", connected_client[numClients - 1].userID);
+		  	printf("IP: %s\n", connected_client[numClients - 1].clientIP);
+		  	
 	  	}
 	  	else if (strcmp(buffer, ">>bye<<") == 0){
 	  		
@@ -230,19 +235,52 @@ void broadcast_message(int sender, char* messageToSend)
 
 void formatMessage(char* message, int whichClient, int isSender)
 {
+	int length = 0;
+	char senderMessage[1024];
 	char whatTime[TIME_LEN];
 	getCurrentTime(whatTime);
+	strcpy(senderMessage, message);	// keep track of the message
 	
-	char senderMessage[1024];
-	strcpy(senderMessage, message);
+	// POSITION 1 - 15 				= IP
+	// POSITION 16, 24, 27, 28 		= SPACES
+	// POSITION 17 					= [
+	// POSITION 18 - 22 			= USERID
+	// POSITION 23 					= ]
+	// POSITION 25, 26 				= >> OR <<
+	// POSITION 28 - 68 			= MESSAGE (UP TO 40 chars)
+	// POSITION 69 - 78 			= (HH:MM:SS)
 	
-	// IP, userID and message should sender's which will be sent to all connected clients	
 	memset(message, 0, 1024);
 
-	strcpy(message, connected_client[whichClient].clientIP);	// get sender's IP
-	strcat(message, " [");	// whitespace
-	strcat(message, connected_client[whichClient].userID);		// get sender's ID
-	strcat(message, "] ");	// whitespace
+	length = strlen(connected_client[whichClient].clientIP);		// get size of IP
+	if(length <= 15)
+	{
+		while(length < 15)
+		{
+			strcat(connected_client[whichClient].clientIP, " ");
+			length++;
+		}
+		strcpy(message, connected_client[whichClient].clientIP);	// get sender's IP
+		printf("IP: %s\n", message);
+	}
+	
+	strcat(message, " [");	// bracket
+	
+	length = strlen(connected_client[whichClient].userID);			// get size of the userID
+	printf("connected_client[whichClient].userID: %s\n", connected_client[whichClient].userID);
+	if(length <= 5)
+	{
+		while(length < 5)
+		{
+			strcat(connected_client[whichClient].userID, " ");
+			length++;
+		}
+		strcat(message, connected_client[whichClient].userID);		// get sender's ID
+		printf("ID: %s\n", message);
+	}
+	
+	strcat(message, "] ");	// bracket
+	
 	if(isSender)
 	{
 		strcat(message, ">> ");
@@ -251,7 +289,30 @@ void formatMessage(char* message, int whichClient, int isSender)
 	{
 		strcat(message, "<< ");
 	}
-	strcat(message, senderMessage);
+	
+	length = strlen(senderMessage);	// get size of the message
+	printf("size: %d\n", length);
+	
+	// TODO message should be maximum of 40 characters
+	if(length <= 40)	// if message length is less than 40
+	{
+		while(length < 40)
+		{
+			// append white space to message array
+			strcat(senderMessage, " ");
+			length++;
+		}
+		strcat(message, senderMessage);	
+		printf("message: %s\n", message);
+		printf("message: %s\n", senderMessage);
+	}
+	else
+	{
+		// message is greater than 40; send in multiple chunks
+		
+	}
+	
+	// get time
 	strcat(message, " (");
 	strcat(message, whatTime);
 	strcat(message, ")");

@@ -34,11 +34,12 @@ void getCurrentTime(char* whatTime);
 
 int main (int argc, char *argv[])
 {
+	// make constants for array lengths
 	char userID[21];
 	struct hostent *host;
 	int endSession 		= 1;
 	int msgRecd 		= 0;
-	char message[1024];	
+	char message[81];	
 	int count 			= 0;
 	int server_socket;
 	struct sockaddr_in server, addr;		// create sockaddr_in variable to connect to server
@@ -54,7 +55,8 @@ int main (int argc, char *argv[])
 		return CMD_ERROR;
 	}
 	
-	strcpy(userID,argv[1]);	// user ID of the client connected
+	// validate arg lengths
+	strcpy(userID, argv[1]);	// user ID of the client connected
 	
 	printf("%s\n", argv[0]);
 	printf("%s\n", argv[1]);
