@@ -194,7 +194,7 @@ void *client_handler(void* client_socket)
 	pthread_exit(NULL);
 }
 
-// send message to all clients except sender
+// send message to all clients
 void broadcast_message(int sender, char* messageToSend)
 {
 	char sendMsg[1024];

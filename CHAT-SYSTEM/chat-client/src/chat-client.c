@@ -28,8 +28,6 @@
 // function prototypes
 void *sendMessage(void* socket);
 void *recvMessage(void* socket);
-char* formatMsg(char* message, int sender);
-void getCurrentTime(char* whatTime);
 
 
 int main (int argc, char *argv[])
@@ -224,36 +222,3 @@ void *recvMessage(void* socket)
 	
 	pthread_exit(NULL);
 }
-
-
-char* formatMsg(char* message, int sender)
-{
-
-}
-
-void getCurrentTime(char* whatTime)
-{
-	time_t currentTime;
-	struct tm *timeIs;
-	
-	time(&currentTime);
-	timeIs = localtime(&currentTime);
-	
-	strftime(whatTime, 9, "%H:%M:%S", timeIs);
-}
-
-/*
-			// IP ADDRESS [USERID] >> MESSAGE (HH:MM:SS)	IP and userID of sender
-			printf("%s\n", connected_client[i].clientIP);
-			
-			sprintf(sendMsg, "%s", connected_client[i].clientIP);
-			strcat(sendMsg, " ");		
-			sprintf(sendMsg, "[%s]", connected_client[i].userID);
-			strcat(sendMsg, " ");		
-			strcat(sendMsg, ">> ");
-			strcat(sendMsg, messageToSend);
-			strcat(sendMsg, " ");		
-			strcat(sendMsg, whatTime);
-			
-			printf("message to send: %s\n", sendMsg);
-*/
