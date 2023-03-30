@@ -201,6 +201,12 @@ void broadcast_message(int sender, char* messageToSend)
 	
 	int senderIndx;
 	
+	int msgLength;
+	
+	int numPacket;
+	
+	char packet[2][40];
+	
 	strcpy(sendMsg, messageToSend);	// keep track of the original message sent by sender
 	
 	// loop to get sender's IP, userID, message to create the formatted message
@@ -217,19 +223,70 @@ void broadcast_message(int sender, char* messageToSend)
 	}
 	printf("sent: %s\n",messageToSend);
 	
-	// server has knowledge of all the client's connected to it (their userID, IP ect.)
-	formatMessage(sendMsg, senderIndx, 0);
-			
-	// send formatted message to each client
-	for(int i = 0; i < numClients; i++)
+	// check message size and break in chunks of 40 characters	
+	msgLength = strlen(sendMsg);
+
+	if (msgLength <= 40)
 	{
-		if(connected_client[i].client_socket != sender)
-		{			
-			// send a formatted reponse to all clients except the sender
-			write(connected_client[i].client_socket, sendMsg , strlen(sendMsg));
+		numPacket = 1;
+
+		formatMessage(sendMsg, senderIndx, 0);
+
+		// send formatted message to each client
+		for(int i = 0; i < numClients; i++)
+		{
+			if(connected_client[i].client_socket != sender)
+			{			
+				// send a formatted reponse to all clients except the sender
+				write(connected_client[i].client_socket, sendMsg , strlen(sendMsg));
+			}
 		}
+		printf("sent: %s\n",sendMsg);
 	}
-	printf("sent: %s\n",sendMsg);
+	else
+	{
+		numPacket = 2;
+		
+		printf("message greater than 40 characters\n");
+		
+		// message is greater than 40 characters; send in multiple chunks
+		// check if char at index 39 is an empty space
+		if (sendMsg[39] == 32)
+		{
+			//break message at index 40
+			strncpy(packet[0], sendMsg, 40); // first 40 characters
+			printf("1st packet: %s\n", packet[0]);
+			strncpy(packet[1], sendMsg+39, 40); // second part of the message
+			printf("2nd packet: %s\n", packet[1]);
+			
+			// TODO client isn't receiving the packets
+			// send packets
+			for (int i = 0; i < numPacket; i++)
+			{
+				formatMessage(packet[i], senderIndx, 0);
+
+				// send formatted message to each client
+				for(int i = 0; i < numClients; i++)
+				{
+					if(connected_client[i].client_socket != sender)
+					{			
+						// send a formatted reponse to all clients except the sender
+						write(connected_client[i].client_socket, packet[i] , strlen(packet[i]));
+					}
+				}
+				printf("sent: %s\n",packet[i]);
+				
+				memset(packet[i], 0, 40);
+			}
+		}
+		else
+		{
+			// TODO break the message next to 40 characters
+			printf("Break next to 40\n");			
+			//break next to the closest empty space
+		}
+
+	}
 }
 
 
@@ -306,11 +363,20 @@ void formatMessage(char* message, int whichClient, int isSender)
 		printf("message: %s\n", message);
 		printf("message: %s\n", senderMessage);
 	}
-	else
+	/*else
 	{
 		// message is greater than 40; send in multiple chunks
+		// check if char at index 39 is empty space
+		if (senderMessage[39] == "")
+		{
+			//break message at index 40
+		}
+		else
+		{
+			//break next to the closest empty space
+		}
 		
-	}
+	}*/
 	
 	// get time
 	strcat(message, " (");
