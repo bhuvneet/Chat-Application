@@ -153,7 +153,7 @@ int main (int argc, char *argv[])
 
 void *sendMessage(void* socket)
 {
-	char message[1024] = {"\0"};		// use constant
+	char message[81] = {"\0"};		// use constant
 	int endSession = 1;
 	int server_socket = *((int*)socket);
 	
@@ -164,18 +164,14 @@ void *sendMessage(void* socket)
 		//refresh();							// print it on to the real screen
 		
 		// read input from terminal
-		if(fgets(message, 1024, stdin) != NULL)
+		if(fgets(message, 81, stdin) != NULL)	// limiting input to 80 characters
 		{
 			if (message[strlen (message) - 1] == '\n') message[strlen (message) - 1] = '\0';	// remove new line character
 			
 			int len = strlen(message);
-
-			if(len == 80)
-			{
-				// send message to server
-				write (server_socket, message, strlen (message));
-			}
-			else if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
+			printf("length of message: %d\n", len);
+			
+			if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
 			{
 				// send final message to server
 				write (server_socket, message, strlen (message));
@@ -187,7 +183,7 @@ void *sendMessage(void* socket)
 				send (server_socket, message, strlen (message), 0);
 			}
 
-			memset(message, 0, 1024);
+			memset(message, 0, 81);
 		}			
 		
 	}
@@ -199,20 +195,27 @@ void *sendMessage(void* socket)
 
 void *recvMessage(void* socket)
 {
-	char message[1024];
+	char message[79];
+	char buffer[80];
 	int readMsg;
 	int server_socket = *((int*)socket);
 	
-	memset(message, 0, 1024);	// reset buffer
+	memset(message, 0, 79);	// reset buffer
 	while(1)
 	{
-		readMsg = read(server_socket, message, 1024);
+		memset(message,0,79);
+		readMsg = read(server_socket, message, 79);
+		printf("length of msg received %d\n", readMsg);
 		
 		if(readMsg > 0)
 		{
-			// format message once received, before displaying
+			if (readMsg == 79)	// TODO when message length is 80 characters IP address in printed after time
+			{
+
+			}
+			
 			printf("Message RCD: %s\n", message);
-			memset(message,0,1024);
+			memset(message,0,79);
 			fflush(stdout);
 		}
 		else if(readMsg == 0)
@@ -224,36 +227,3 @@ void *recvMessage(void* socket)
 	
 	pthread_exit(NULL);
 }
-
-
-char* formatMsg(char* message, int sender)
-{
-
-}
-
-void getCurrentTime(char* whatTime)
-{
-	time_t currentTime;
-	struct tm *timeIs;
-	
-	time(&currentTime);
-	timeIs = localtime(&currentTime);
-	
-	strftime(whatTime, 9, "%H:%M:%S", timeIs);
-}
-
-/*
-			// IP ADDRESS [USERID] >> MESSAGE (HH:MM:SS)	IP and userID of sender
-			printf("%s\n", connected_client[i].clientIP);
-			
-			sprintf(sendMsg, "%s", connected_client[i].clientIP);
-			strcat(sendMsg, " ");		
-			sprintf(sendMsg, "[%s]", connected_client[i].userID);
-			strcat(sendMsg, " ");		
-			strcat(sendMsg, ">> ");
-			strcat(sendMsg, messageToSend);
-			strcat(sendMsg, " ");		
-			strcat(sendMsg, whatTime);
-			
-			printf("message to send: %s\n", sendMsg);
-*/

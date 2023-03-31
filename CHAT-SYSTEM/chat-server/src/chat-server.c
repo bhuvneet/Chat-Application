@@ -160,10 +160,10 @@ void *client_handler(void* client_socket)
 		  	}
 		  	connected_client[numClients - 1].clientIP[i] = '\0';	// null terminate the string
 		  	
-		  	printf("Clients %d\n", numClients);
+		  	/*printf("Clients %d\n", numClients);
 		  	printf("Socket: %d\n", connected_client[numClients - 1].client_socket);
 		  	printf("ID: %s\n", connected_client[numClients - 1].userID);
-		  	printf("IP: %s\n", connected_client[numClients - 1].clientIP);
+		  	printf("IP: %s\n", connected_client[numClients - 1].clientIP);*/
 		  	
 	  	}
 	  	else if (strcmp(buffer, ">>bye<<") == 0){
@@ -216,18 +216,18 @@ void broadcast_message(int sender, char* messageToSend)
 	{
 		if(connected_client[i].client_socket == sender)
 		{			
-			formatMessage(messageToSend, i, 1);
+			//formatMessage(messageToSend, i, 1);
 			senderIndx = i;	// get sender's index
 			
 			// send a formatted reponse to sender
-			write(connected_client[i].client_socket, messageToSend , strlen(messageToSend));	
+			//write(connected_client[i].client_socket, messageToSend , strlen(messageToSend));	
 		}
 	}
-	printf("sent: %s\n",messageToSend);
 	
 	// check message size and break in chunks of 40 characters	
 	msgLength = strlen(sendMsg);
 
+	// if message is less than / equal to 40 characters
 	if (msgLength <= 40)
 	{
 		numPacket = 1;
@@ -236,7 +236,12 @@ void broadcast_message(int sender, char* messageToSend)
 
 		memcpy(packet[0], sendMsg, 40);
 
-		// send packets
+		// send packets to sender
+		formatMessage(packet[0], senderIndx, 1);
+		write(connected_client[senderIndx].client_socket, packet[0] , strlen(packet[0]));
+		printf("sent: %s\n",packet[0]);
+
+		memcpy(packet[0], sendMsg, 40);		// packet[] has been overwritten, reset to the original message
 		for (int j = 0; j < numPacket; j++)
 		{
 			formatMessage(packet[j], senderIndx, 0);
@@ -254,6 +259,7 @@ void broadcast_message(int sender, char* messageToSend)
 			printf("sent: %s\n",packet[j]);
 		}
 	}
+	// else if message is greater than 40 characters
 	else
 	{
 		numPacket = 2;
@@ -276,14 +282,13 @@ void broadcast_message(int sender, char* messageToSend)
 		{
 			// check if char at index 40 is an empty space
 			//break message at index 40
-			memcpy(packet[0], sendMsg, 40); // first 40 characters
+			memcpy(packet[0], sendMsg, 40); 		// first 40 characters
 			printf("1st packet: %s\n", packet[0]);
-			memcpy(packet[1], sendMsg+41, 40); // second part of the message
+			memcpy(packet[1], sendMsg+41, 40); 		// second part of the message
 			printf("2nd packet: %s\n", packet[1]);
 		}
 		else
-		{
-			
+		{		
 			//break next to the last empty space before 40 characters
 
 			memcpy(packet[0], sendMsg, 40); // first 40 characters
@@ -302,8 +307,8 @@ void broadcast_message(int sender, char* messageToSend)
 		 		i++;
 			}
 			
-			memset(packet[0], 0, 1024);	// clear the buffer
-			memcpy(packet[0], sendMsg, index+1); // first part of the message
+			memset(packet[0], 0, 1024);				// clear the buffer
+			memcpy(packet[0], sendMsg, index+1); 	// first part of the message
 			printf("1st packet: %s\n", packet[0]);	
 
 
@@ -313,24 +318,38 @@ void broadcast_message(int sender, char* messageToSend)
 		}
 
 		// TODO still need to diplay the formatted for the client who sent the message after breaking it
-		// send packets
 		for (int j = 0; j < numPacket; j++)
 		{
-			formatMessage(packet[j], senderIndx, 0);
+			strcpy(sendMsg, packet[j]);		// to prevent overwriting the broken up message
+			// send packets to sender
+			formatMessage(sendMsg, senderIndx, 1);
+			write(connected_client[senderIndx].client_socket, sendMsg, strlen(sendMsg));
+
+			int len = strlen(sendMsg);
+			printf("sent: %s\n", sendMsg);
+			printf("length: %d\n", len);
+		}
+		
+		// send packets to all other clients
+		for (int j = 0; j < numPacket; j++)
+		{
+			strcpy(sendMsg, packet[j]);		// to prevent overwriting the broken up message
+			formatMessage(sendMsg, senderIndx, 0);
 
 			// send formatted message to each client
 			for(int i = 0; i < numClients; i++)
-			{
+			{					
 				if(connected_client[i].client_socket != sender)
 				{			
 					// send a formatted reponse to all clients except the sender
-					write(connected_client[i].client_socket, packet[j] , strlen(packet[j]));
+					write(connected_client[i].client_socket, sendMsg , strlen(sendMsg));
 				}
 			}
 
-			printf("sent: %s\n",packet[j]);
+			int len = strlen(sendMsg);
+			printf("sent: %s\n", sendMsg);
+			printf("length: %d\n", len);
 		}
-
 	}
 }
 
@@ -342,6 +361,7 @@ void formatMessage(char* message, int whichClient, int isSender)
 	char whatTime[TIME_LEN];
 	getCurrentTime(whatTime);
 	strcpy(senderMessage, message);	// keep track of the message
+	printf("sender message: %s\n", senderMessage);
 	
 	// POSITION 1 - 15 				= IP
 	// POSITION 16, 24, 27, 28 		= SPACES
@@ -407,6 +427,12 @@ void formatMessage(char* message, int whichClient, int isSender)
 		strcat(message, senderMessage);	
 		printf("message: %s\n", message);
 		printf("message: %s\n", senderMessage);
+	}
+	else
+	{
+		// no need to append blank space after the message
+		strcat(message, senderMessage);	
+		printf("message: %s\n", message);
 	}
 	/*else
 	{
