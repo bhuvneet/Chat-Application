@@ -28,9 +28,8 @@
 // function prototypes
 void *sendMessage(void* socket);
 void *recvMessage(void* socket);
-char* formatMsg(char* message, int sender);
-void getCurrentTime(char* whatTime);
 
+static int iQuit = 0;
 
 int main (int argc, char *argv[])
 {
@@ -143,8 +142,7 @@ int main (int argc, char *argv[])
 		
 		// create another thread to read from socket
 		
-		// close client socket
-		close(server_socket);
+		
 	}	
 	
 	return 0;
@@ -154,10 +152,9 @@ int main (int argc, char *argv[])
 void *sendMessage(void* socket)
 {
 	char message[81] = {"\0"};		// use constant
-	int endSession = 1;
 	int server_socket = *((int*)socket);
 	
-	while(endSession)
+	while(1)
 	{
 		fflush(stdout);
 		
@@ -174,20 +171,23 @@ void *sendMessage(void* socket)
 			if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
 			{
 				// send final message to server
-				write (server_socket, message, strlen (message));
-				endSession = 0;
+				send (server_socket, message, strlen (message), 0);
+				iQuit = 1;
+				// close client socket
+				close(server_socket);
+				break;
 			}
 			else
 			{
 				// send message to server
 				send (server_socket, message, strlen (message), 0);
-			}
-
-			memset(message, 0, 81);
+				memset(message, 0, 81);
+			}		
 		}			
 		
 	}
 	
+	printf("exiting...\n");
 	pthread_exit(NULL);
 
 }
@@ -203,6 +203,7 @@ void *recvMessage(void* socket)
 	memset(message, 0, 79);	// reset buffer
 	while(1)
 	{
+		printf("quir %d\n", iQuit);
 		memset(message,0,79);
 		readMsg = read(server_socket, message, 79);
 		printf("length of msg received %d\n", readMsg);
@@ -219,11 +220,11 @@ void *recvMessage(void* socket)
 			fflush(stdout);
 		}
 		else if(readMsg == 0)
-		{
+		{			
 			printf("Server disconnected\n");
+			exit(0);		// this will exit the reading thread from executing
 			break;
 		}
 	}
 	
-	pthread_exit(NULL);
 }

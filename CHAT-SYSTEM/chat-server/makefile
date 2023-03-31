@@ -7,6 +7,7 @@
 
 ./bin/chat-server: ./obj/chat-server.o ../common/obj/common.o
 		cc ./obj/chat-server.o ../common/obj/common.o -o ./bin/chat-server -lpthread
+		
 	
 	
 # dependencies:	
