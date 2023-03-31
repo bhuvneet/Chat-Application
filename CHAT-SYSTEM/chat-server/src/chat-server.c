@@ -166,8 +166,8 @@ void *client_handler(void* client_socket)
 		  	printf("IP: %s\n", connected_client[numClients - 1].clientIP);*/
 		  	
 	  	}
-	  	else if (strcmp(buffer, ">>bye<<") == 0){
-	  		
+	  	else if (strcmp(buffer, ">>bye<<") == 0)
+	  	{	
 	  		// remove client from array
 			int client_removed = removeClientFromArray(client_sock);
 	  		if (client_removed == ERROR)
@@ -184,6 +184,7 @@ void *client_handler(void* client_socket)
 	  	{
 	  		// send a reponse to all clients excpet the sender
 			// format the message first before invoking this function
+			printf("broadcasting...\n");
 			broadcast_message(client_sock, buffer);
 	  	}
 		
@@ -479,7 +480,7 @@ int removeClientFromArray(int sender)
 
 
 	// search sender in the array connected_client
-	for (int i; i < size; i++)
+	for (int i = 0; i < size; i++)
 	{
 		if (connected_client[i].client_socket == sender)
 		{
