@@ -172,7 +172,6 @@ void *sendMessage(void* socket)
 			{
 				// send final message to server
 				send (server_socket, message, strlen (message), 0);
-				iQuit = 1;
 				// close client socket
 				close(server_socket);
 				break;
@@ -189,7 +188,7 @@ void *sendMessage(void* socket)
 	
 	printf("exiting...\n");
 	pthread_exit(NULL);
-
+	exit(0);
 }
 
 
@@ -203,7 +202,6 @@ void *recvMessage(void* socket)
 	memset(message, 0, 79);	// reset buffer
 	while(1)
 	{
-		printf("quir %d\n", iQuit);
 		memset(message,0,79);
 		readMsg = read(server_socket, message, 79);
 		printf("length of msg received %d\n", readMsg);
@@ -226,5 +224,4 @@ void *recvMessage(void* socket)
 			break;
 		}
 	}
-	
 }
