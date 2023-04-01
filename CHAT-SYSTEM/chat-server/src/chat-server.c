@@ -10,6 +10,7 @@
 #include "../../common/inc/common.h"
 #include "../inc/chat-server.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/socket.h>	// for socket programming
 #include <netdb.h>		// for gethostbyname
 #include <arpa/inet.h>
@@ -18,9 +19,13 @@
 #include <unistd.h>		// to close socket
 #include <pthread.h>
 #include <time.h>		// to calculate current time
+#include <signal.h>
 
 static int numClients = 0;	// to keep track of total clients connected
+static int keepRunning = 1;
+
 ConnectedClients connected_client[MAX_CLIENTS];
+Threads client_thread[MAX_CLIENTS];
 
 // function prototypes
 void *client_handler(void* client_socket);
@@ -28,21 +33,26 @@ void broadcast_message(int sender, char* messageToSend);
 int removeClientFromArray(int sender);
 void formatMessage(char* message, int whichClient, int isSender);
 void getCurrentTime(char* whatTime);
+void shutdown_signal(void);
 
 int main()
 {	
+	// setting up signal to decide whether or not to shutdown server
+	//signal (SIGALRM, shutdown_signal);	
+	//signal (SIGALRM, shutdown_signal);
+	//alarm(5);	// set timer to check every 10 seconds
+	
 	int server_socket;
 	struct sockaddr_in server, client;
 	
 	int clientSockets[MAX_CLIENTS];	// data structure holds all sockets
-	pthread_t client_threads[MAX_CLIENTS];
-	//ClientThreads client_thread;
 	
 	// create socket
 	server_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if(server_socket == -1)
 	{
 		printf("ERROR: %s\n", hstrerror(errno));
+		return 0;
 	}
 	
 	// initialize socket
@@ -55,6 +65,7 @@ int main()
   	if(bind(server_socket,(struct sockaddr *)&server, sizeof(server)) < 0)
   	{
   		printf("ERROR: %s\n", hstrerror(errno));
+		return 0;
   	}
   	
   	// listen for connections
@@ -63,10 +74,14 @@ int main()
 		printf("ERROR: %s\n", hstrerror(errno));
 		return ERROR;
   	}
-  	
-  	while(numClients < MAX_CLIENTS)
-  	{
-  		// accept incoming connections - upto 10 clients
+    
+  	while(keepRunning)
+  	{	
+  		printf("keep running: %d\n", keepRunning);
+  		if (numClients == 9)
+  		{
+  			break;
+  		}
   		
 	  	int client_len = sizeof(struct sockaddr_in);
 	  	int new_connection = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&client_len);	// accept new client
@@ -74,47 +89,62 @@ int main()
 	  	{
 	  		printf("ERROR: %s\n", hstrerror(errno));
 	  		close(server_socket);
+	  		keepRunning = 0; // break loop when accept fails
 	  	}
 	  	else
 	  	{
+	  		if (keepRunning == 0)
+	  		{
+	  			("exiting server...\n");
+	  			break;
+	  		}
+	  		
 	  		clientSockets[numClients] = new_connection;	// add connected client to list
 	  		printf("socket # %d:\n", clientSockets[numClients]);
 
-			if (pthread_create(&client_threads[numClients], NULL, client_handler, (void *)&new_connection))
-			{
-				printf("ERROR host ID: %s\n", strerror(errno));
-				return 0;
-			}
-			printf("Client #: %d\n", numClients);
+			numClients++;		// increment the number of clients connected	
 			
-			numClients++;		// increment the number of clients connected
+			if (keepRunning != 0)
+			{
+				if (pthread_create(&client_thread[numClients].client_threads, NULL, client_handler, (void *)&new_connection))
+				{
+					printf("ERROR host ID: %s\n", strerror(errno));
+					return 0;	// change this to constant
+				}	
+			}
+			
 	  	}
-
-		// TODO stop server when the number of clients is zero
-		// this part of the code isn't working
-		if (numClients == 0)
-		{
-			break;	// stop listening to new clients
-		}
   	}
 
 	printf("Stop listening");
-  	
-  	int numOfThreads = sizeof(client_threads) / sizeof(client_threads[0]);
-
+  	int numOfThreads = sizeof(client_thread[numClients].client_threads) / sizeof(client_thread[0].client_threads);
+	
+	printf("number of threads: %d\n", numOfThreads);
+	
 	// wait for all clients to finish
 	for(int i = 0; i < numOfThreads; i++)
 	{
-		pthread_join(client_threads[i], NULL);
+		pthread_join(client_thread[numClients].client_threads, NULL);
 	}
 
 	printf("Closing the server");
-	
 	
 	// close socket
 	close(server_socket);
 	
 	return 0;
+}
+
+void shutdown_signal(void)
+{
+	printf("in watchdog timer\n");
+	// keepRunning is being set to 0 in removeClientFromArray function
+	if((keepRunning == 0) && (numClients == 0))
+	{
+		// shutdown server
+		printf("[SERVER WATCH-DOG] : I'M LEAVING !\n");
+		exit(-1);
+	}
 }
 
 // send and receive messages from clients
@@ -126,73 +156,72 @@ void *client_handler(void* client_socket)
 	int readMsg;
 	int i = 0;
 	
-	while ((readMsg = read(client_sock, buffer, 1024)) > 0)
+	while (numClients > 0)
 	{
-		printf("received from client: %s\n", buffer);
-		
-		// check if it's the first message sent -- "FIRST|-userID|IPAddress"
-		// client will send their IP address and userID as the first message, once the connection is established
-		returnVal = strstr(buffer, "FIRST|");
-	  	if(returnVal)
-	  	{
-	  		connected_client[numClients - 1].client_socket = client_sock;	// add client socket to structure
-	  		
-	  		// first message is sent by client to register it's userID and IP address
-	  		returnVal = strstr(buffer, "r");
-		  	returnVal++;
-		  	i = 0;
-		  	while(*returnVal != '|')
-		  	{
-		  		connected_client[numClients - 1].userID[i] = *returnVal;
-		  		returnVal++;
-		  		i++;
-		  	}
-		  	connected_client[numClients - 1].userID[i] = '\0';	// null terminate the string
-		  	
-		  	returnVal = strrchr(buffer, '|');
-		  	returnVal++;
-		  	i = 0;
-		  	while(*returnVal != '\0')	// while pointer hasn't reached end of string
-		  	{
-		  		connected_client[numClients - 1].clientIP[i] = *returnVal;
-		  		returnVal++;
-		  		i++;
-		  	}
-		  	connected_client[numClients - 1].clientIP[i] = '\0';	// null terminate the string
-		  	
-		  	/*printf("Clients %d\n", numClients);
-		  	printf("Socket: %d\n", connected_client[numClients - 1].client_socket);
-		  	printf("ID: %s\n", connected_client[numClients - 1].userID);
-		  	printf("IP: %s\n", connected_client[numClients - 1].clientIP);*/
-		  	
-	  	}
-	  	else if (strcmp(buffer, ">>bye<<") == 0)
-	  	{	
-	  		// remove client from array
-			int client_removed = removeClientFromArray(client_sock);
-	  		if (client_removed == ERROR)
-			{
-				printf("ERROR: Client not found.\n");
+		printf("# of clients %d\n", numClients);
+		while ((readMsg = read(client_sock, buffer, 1024)) > 0)
+		{
+			printf("received from client: %s\n", buffer);
+			
+			if (strcmp(buffer, ">>bye<<") == 0)
+		  	{	
+		  		// remove client from array
+				int client_removed = removeClientFromArray(client_sock);
+		  		if (client_removed == ERROR)
+				{
+					printf("ERROR: Client not found.\n");
+				}
+				
+				close(client_sock);	// close client connection
+				fflush(stdout);
+				pthread_exit(&numClients);
+				
+				exit(0);
 			}
-			else
-			{
-				printf("Client disconnected.\n");
-				break;
-			}
+			// check if it's the first message sent -- "FIRST|-userID|IPAddress"
+			// client will send their IP address and userID as the first message, once the connection is established
+			returnVal = strstr(buffer, "FIRST|");
+		  	if(returnVal)
+		  	{
+		  		connected_client[numClients - 1].client_socket = client_sock;	// add client socket to structure
+		  		
+		  		// first message is sent by client to register it's userID and IP address
+		  		returnVal = strstr(buffer, "r");
+			  	returnVal++;
+			  	i = 0;
+			  	while(*returnVal != '|')
+			  	{
+			  		connected_client[numClients - 1].userID[i] = *returnVal;
+			  		returnVal++;
+			  		i++;
+			  	}
+			  	connected_client[numClients - 1].userID[i] = '\0';	// null terminate the string
+			  	
+			  	returnVal = strrchr(buffer, '|');
+			  	returnVal++;
+			  	i = 0;
+			  	while(*returnVal != '\0')	// while pointer hasn't reached end of string
+			  	{
+			  		connected_client[numClients - 1].clientIP[i] = *returnVal;
+			  		returnVal++;
+			  		i++;
+			  	}
+			  	connected_client[numClients - 1].clientIP[i] = '\0';	// null terminate the string			  	
+		  	}
+		  	else
+		  	{
+		  		// send a reponse to all clients excpet the sender
+				// format the message first before invoking this function
+				printf("broadcasting...\n");
+				broadcast_message(client_sock, buffer);
+		  	}
+			
+			memset(buffer, 0, 1024);
 		}
-	  	else
-	  	{
-	  		// send a reponse to all clients excpet the sender
-			// format the message first before invoking this function
-			printf("broadcasting...\n");
-			broadcast_message(client_sock, buffer);
-	  	}
-		
-		memset(buffer, 0, 1024);
 	}
 	
-	close(client_sock);	// close client connection
-	pthread_exit(NULL);
+	//shutdown(client_sock, SHUT_RDWR);
+	
 }
 
 // send message to all clients
@@ -268,17 +297,7 @@ void broadcast_message(int sender, char* messageToSend)
 		// clear the buffer
 		memset(packet[0], 0, 1024);
 		memset(packet[1], 0, 1024);
-		
-		// message is greater than 40 characters; send in multiple chunks
-		/*if (sendMsg[39] == 32)
-		{
-			// check if char at index 39 is an empty space
-			//break message at index 39
-			memcpy(packet[0], sendMsg, 40); // first 40 characters
-			printf("1st packet: %s\n", packet[0]);
-			memcpy(packet[1], sendMsg+39, 40); // second part of the message
-			printf("2nd packet: %s\n", packet[1]);
-		}*/
+
 		if (sendMsg[40] == 32)
 		{
 			// check if char at index 40 is an empty space
@@ -362,7 +381,6 @@ void formatMessage(char* message, int whichClient, int isSender)
 	char whatTime[TIME_LEN];
 	getCurrentTime(whatTime);
 	strcpy(senderMessage, message);	// keep track of the message
-	printf("sender message: %s\n", senderMessage);
 	
 	// POSITION 1 - 15 				= IP
 	// POSITION 16, 24, 27, 28 		= SPACES
@@ -435,20 +453,6 @@ void formatMessage(char* message, int whichClient, int isSender)
 		strcat(message, senderMessage);	
 		printf("message: %s\n", message);
 	}
-	/*else
-	{
-		// message is greater than 40; send in multiple chunks
-		// check if char at index 39 is empty space
-		if (senderMessage[39] == "")
-		{
-			//break message at index 40
-		}
-		else
-		{
-			//break next to the closest empty space
-		}
-		
-	}*/
 	
 	// get time
 	strcat(message, " (");
@@ -477,8 +481,7 @@ int removeClientFromArray(int sender)
 	int size = sizeof(connected_client) / sizeof(*connected_client);
 	int position;
 	int client_removed;
-
-
+		
 	// search sender in the array connected_client
 	for (int i = 0; i < size; i++)
 	{
@@ -500,13 +503,21 @@ int removeClientFromArray(int sender)
 		}
 		
 		numClients--;	// update number of clients
-
+		printf("client removed. number of clients: %d\n", numClients);
+		
+		
 		client_removed = TRUE;	
 	}
 	else
 	{
 		client_removed = ERROR;	// sender not in the list
 	}
+	if (numClients == 0)
+	{
+		printf("keep running is being set to 0\n");
+		keepRunning = 0;	// this will prevent while loop in main to accept more connections
+	}
+	shutdown_signal();
 
 	return client_removed;
 }

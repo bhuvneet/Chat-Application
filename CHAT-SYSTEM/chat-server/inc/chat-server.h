@@ -13,11 +13,10 @@ typedef struct
 	char message[MAX_MSG];	
 } ConnectedClients;
 
-/*typedef struct 
+typedef struct 
 {
-	ConnectedClients clients;
-	char message[MAX_MSG];
-} MessageFromClient;*/
+	pthread_t client_threads;
+} Threads;
 
 // to hold last 10 messages with IP address, userID and messages in char array format
 typedef struct
