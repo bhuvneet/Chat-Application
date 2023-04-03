@@ -18,6 +18,12 @@ typedef struct
 	pthread_t client_threads;
 } Threads;
 
+typedef struct
+{
+	int clientSockets[MAX_CLIENTS];
+	int server_socket;
+} Sockets;
+
 // to hold last 10 messages with IP address, userID and messages in char array format
 typedef struct
 {
