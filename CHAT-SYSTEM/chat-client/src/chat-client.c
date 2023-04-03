@@ -35,6 +35,7 @@ int getInput = 1;
 void *sendMessage(void* socket);
 void *recvMessage(void* socket);
 void destroy_win(WINDOW *win);
+void blankWin(WINDOW *win);
 
 static int keepRunning = 1;
 
@@ -117,8 +118,8 @@ int main (int argc, char *argv[])
 		getmaxyx(stdscr, x, y);	// set up window dimensions
 		
 		// set up dimensions of screens
-		display_window 		= newwin(y/2,x,0,0);
-    	input_window 		= newwin(y/2,x,x/2,0);
+		display_window 		= newwin(y/2, 85, 0, 0);
+    	input_window 		= newwin(y/2, 85, x/2, 0);
     	scrollok(display_window,TRUE);
     	scrollok(input_window,TRUE);
     	box(display_window,'|','=');
@@ -186,6 +187,23 @@ WINDOW* createOutputWin(int height, int width, int x, int y)
 	
 }
 
+void blankWin(WINDOW *win)
+{
+  int i;
+  int maxrow, maxcol;
+     
+  getmaxyx(win, maxrow, maxcol);
+  for (i = maxcol/2; i < 85; i++)  
+  {
+    wmove(win, i, 1);
+    refresh();
+    wclrtoeol(win);
+    wrefresh(win);
+  }
+  box(win, '|','-');             /* draw the box again */
+  wrefresh(win);
+}  /* blankWin */
+
 void destroy_win(WINDOW *win)
 {
   delwin(win);
@@ -236,6 +254,11 @@ void *sendMessage(void* socket)
         
         // display message in top window
         mvwprintw(display_window, startingLine, 2, message);
+        
+        
+        wmove(win, i, 1);
+        
+        blankWin(input_window);		// clear the input screen for new input
 	}
 }
 
