@@ -19,13 +19,13 @@
 #include <unistd.h>		// to close socket
 #include <pthread.h>
 #include <time.h>		// to calculate current time
-#include <signal.h>
 
 static int numClients = 0;	// to keep track of total clients connected
 static int keepRunning = 1;
 
 ConnectedClients connected_client[MAX_CLIENTS];
 Threads client_thread[MAX_CLIENTS];
+Sockets sockets;
 
 // function prototypes
 void *client_handler(void* client_socket);
@@ -33,23 +33,20 @@ void broadcast_message(int sender, char* messageToSend);
 int removeClientFromArray(int sender);
 void formatMessage(char* message, int whichClient, int isSender);
 void getCurrentTime(char* whatTime);
-void shutdown_signal(void);
+void shutdown_signal(int client_socket);
 
 int main()
 {	
-	// setting up signal to decide whether or not to shutdown server
-	//signal (SIGALRM, shutdown_signal);	
-	//signal (SIGALRM, shutdown_signal);
-	//alarm(5);	// set timer to check every 10 seconds
 	
-	int server_socket;
+	//int server_socket;
 	struct sockaddr_in server, client;
 	
-	int clientSockets[MAX_CLIENTS];	// data structure holds all sockets
+	//int clientSockets[MAX_CLIENTS];	// data structure holds all sockets
+	
 	
 	// create socket
-	server_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if(server_socket == -1)
+	sockets.server_socket = socket(AF_INET, SOCK_STREAM, 0);
+	if(sockets.server_socket == -1)
 	{
 		printf("ERROR: %s\n", hstrerror(errno));
 		return 0;
@@ -62,14 +59,14 @@ int main()
   	server.sin_port = htons (PORT);
   	
   	// bind socket
-  	if(bind(server_socket,(struct sockaddr *)&server, sizeof(server)) < 0)
+  	if(bind(sockets.server_socket,(struct sockaddr *)&server, sizeof(server)) < 0)
   	{
   		printf("ERROR: %s\n", hstrerror(errno));
 		return 0;
   	}
   	
   	// listen for connections
-  	if (listen (server_socket, MAX_CLIENTS) < 0) 
+  	if (listen (sockets.server_socket, MAX_CLIENTS) < 0) 
   	{
 		printf("ERROR: %s\n", hstrerror(errno));
 		return ERROR;
@@ -84,11 +81,11 @@ int main()
   		}
   		
 	  	int client_len = sizeof(struct sockaddr_in);
-	  	int new_connection = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&client_len);	// accept new client
+	  	int new_connection = accept(sockets.server_socket, (struct sockaddr *)&client, (socklen_t*)&client_len);	// accept new client
 	  	if(new_connection < 0)
 	  	{
 	  		printf("ERROR: %s\n", hstrerror(errno));
-	  		close(server_socket);
+	  		close(sockets.server_socket);
 	  		keepRunning = 0; // break loop when accept fails
 	  	}
 	  	else
@@ -99,8 +96,8 @@ int main()
 	  			break;
 	  		}
 	  		
-	  		clientSockets[numClients] = new_connection;	// add connected client to list
-	  		printf("socket # %d:\n", clientSockets[numClients]);
+	  		sockets.clientSockets[numClients] = new_connection;	// add connected client to list
+	  		printf("socket # %d:\n", sockets.clientSockets[numClients]);
 
 			numClients++;		// increment the number of clients connected	
 			
@@ -116,7 +113,7 @@ int main()
 	  	}
   	}
 
-	printf("Stop listening");
+	/*printf("Stop listening");
   	int numOfThreads = sizeof(client_thread[numClients].client_threads) / sizeof(client_thread[0].client_threads);
 	
 	printf("number of threads: %d\n", numOfThreads);
@@ -130,19 +127,41 @@ int main()
 	printf("Closing the server");
 	
 	// close socket
-	close(server_socket);
+	//close(server_socket);*/
 	
 	return 0;
 }
 
-void shutdown_signal(void)
+void shutdown_signal(int client_socket)
 {
 	printf("in watchdog timer\n");
+	
+	printf("closing socket\n");
+	close(client_socket);	// close client connection
+	printf("closed 1\n");
+	//fflush(stdout);
+	//pthread_exit(NULL);
+	//printf("closed2\n");
+				
 	// keepRunning is being set to 0 in removeClientFromArray function
 	if((keepRunning == 0) && (numClients == 0))
 	{
-		// shutdown server
-		printf("[SERVER WATCH-DOG] : I'M LEAVING !\n");
+		// join all threads
+		int numOfThreads = sizeof(client_thread[numClients].client_threads) / sizeof(client_thread[0].client_threads);
+	
+		printf("number of threads: %d\n", numOfThreads);
+		
+		// wait for all clients to finish
+		for(int i = 0; i < numOfThreads; i++)
+		{
+			pthread_join(client_thread[numClients].client_threads, NULL);
+		}
+		
+		printf("closing server\n");
+		// close server socket
+		close(sockets.server_socket);
+		printf("closed\n");
+		
 		exit(-1);
 	}
 }
@@ -158,7 +177,6 @@ void *client_handler(void* client_socket)
 	
 	while (numClients > 0)
 	{
-		printf("# of clients %d\n", numClients);
 		while ((readMsg = read(client_sock, buffer, 1024)) > 0)
 		{
 			printf("received from client: %s\n", buffer);
@@ -172,11 +190,12 @@ void *client_handler(void* client_socket)
 					printf("ERROR: Client not found.\n");
 				}
 				
-				close(client_sock);	// close client connection
+				shutdown_signal(client_sock);	// close socket, join threads and shutdown server
+				/*close(client_sock);	// close client connection
 				fflush(stdout);
-				pthread_exit(&numClients);
+				pthread_exit(&numClients);*/
 				
-				exit(0);
+				break;
 			}
 			// check if it's the first message sent -- "FIRST|-userID|IPAddress"
 			// client will send their IP address and userID as the first message, once the connection is established
@@ -517,7 +536,7 @@ int removeClientFromArray(int sender)
 		printf("keep running is being set to 0\n");
 		keepRunning = 0;	// this will prevent while loop in main to accept more connections
 	}
-	shutdown_signal();
+	//shutdown_signal();	// check if server needs to shutdown
 
 	return client_removed;
 }
