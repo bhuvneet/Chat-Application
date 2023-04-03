@@ -174,7 +174,7 @@ int main (int argc, char *argv[])
 		pthread_join(send_thread, NULL);
 		pthread_join(recv_thread, NULL);					
 
-		sleep(5);
+		//TODO not clearing the screen
 		delwin(chat_win);
 		delwin(msg_win);
 		endwin();							// End curses mode - this will free memory taken by ncurses sub0system and its data structures and put terminal back in normal mode.
