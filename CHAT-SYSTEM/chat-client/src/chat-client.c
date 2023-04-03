@@ -25,11 +25,18 @@
 #define HOST_SEARCH_FAIL -3
 #define h_addr h_addr_list[0] /* for backward compatibility */
 
+// for displaying messages
+WINDOW *display_window;
+WINDOW *input_window;
+int startingLine = 1;
+int getInput = 1;
+	
 // function prototypes
 void *sendMessage(void* socket);
 void *recvMessage(void* socket);
+void destroy_win(WINDOW *win);
 
-static int iQuit = 0;
+static int keepRunning = 1;
 
 int main (int argc, char *argv[])
 {
@@ -38,7 +45,7 @@ int main (int argc, char *argv[])
 	struct hostent *host;
 	int endSession 		= 1;
 	int msgRecd 		= 0;
-	char message[81];	
+	char message[1024];	
 	int count 			= 0;
 	int server_socket;
 	struct sockaddr_in server, addr;		// create sockaddr_in variable to connect to server
@@ -46,6 +53,10 @@ int main (int argc, char *argv[])
 	char myIPaddress[21];					// to send to server client's IP address as first message'
 	pthread_t send_thread, recv_thread;		// threads to send and receive messages
 	
+	
+	
+	// screen dimensions
+	int x, y;
 	
 	// check command line args
 	if(argc != 3)
@@ -96,7 +107,22 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		printf("connected with server!\n");
+		// initializes the curses system and alloacte memory for window
+		initscr();
+		getmaxyx(stdscr, x, y);	// set up window dimensions
+		
+		// set up dimensions of screens
+		display_window = newwin(y/2,x,0,0);
+    	input_window = newwin(y/2,x,x/2,0);
+    	scrollok(display_window,TRUE);
+    	scrollok(input_window,TRUE);
+    	box(display_window,'|','=');
+		box(input_window,'|','-');
+
+		wsetscrreg(display_window,1,y/2-2);
+		wsetscrreg(input_window,1,y/2-2);
+		
+		//printf("connected with server!\n");
 		
 		// send first message to server for userID and IP address
 		getsockname(server_socket, (struct sockaddr *)&addr, &len);		// send server IP address of this client
@@ -114,8 +140,7 @@ int main (int argc, char *argv[])
 		printf("sent: %s\n",message);
 		memset(message, 0, 1024);
 
-		// initializes the curses system and alloacte memory for window
-		//initscr();
+		
 		
 		void* arg;
 		// launch sending thread to send messages to server
@@ -130,6 +155,8 @@ int main (int argc, char *argv[])
 			printf("ERROR host ID: %s\n", strerror(errno));
 			return 0;
 		}		
+		
+		while (keepRunning);
 		
 		// wait for threads to finish
 		pthread_join(send_thread, NULL);
@@ -149,46 +176,62 @@ int main (int argc, char *argv[])
 	
 }
 
+WINDOW* createOutputWin(int height, int width, int x, int y)
+{
+	
+}
+
+void destroy_win(WINDOW *win)
+{
+  delwin(win);
+}  /* destory_win */
+
 void *sendMessage(void* socket)
 {
 	char message[81] = {"\0"};		// use constant
 	int server_socket = *((int*)socket);
 	
-	while(1)
+	while(keepRunning)
 	{
-		fflush(stdout);
-		
-		//refresh();							// print it on to the real screen
-		
-		// read input from terminal
-		if(fgets(message, 81, stdin) != NULL)	// limiting input to 80 characters
+        bzero(message, 81);
+        wrefresh(display_window);
+        wrefresh(input_window);
+        
+        // get input message in bottom window
+        mvwgetstr(input_window, getInput, 2, message);
+        
+        if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
 		{
-			if (message[strlen (message) - 1] == '\n') message[strlen (message) - 1] = '\0';	// remove new line character
+			keepRunning = 0;
 			
-			int len = strlen(message);
-			printf("length of message: %d\n", len);
+			// display message in top window
+        	mvwprintw(display_window, startingLine, 2, message);
+        
+			// send final message to server
+			send (server_socket, message, strlen (message), 0);
 			
-			if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
-			{
-				// send final message to server
-				send (server_socket, message, strlen (message), 0);
-				// close client socket
-				close(server_socket);
-				break;
-			}
-			else
-			{
-				// send message to server
-				send (server_socket, message, strlen (message), 0);
-				memset(message, 0, 81);
-			}		
-		}			
-		
+			// destroy windows
+			destroy_win(display_window);
+			destroy_win(input_window);
+			
+			// end window
+			endwin();
+			
+			pthread_exit(NULL);
+			// close client socket
+			close(server_socket);
+			break;
+		}
+		else
+		{
+			// send message to server
+			send (server_socket, message, strlen (message), 0);
+			memset(message, 0, 81);
+		}
+        
+        // display message in top window
+        mvwprintw(display_window, startingLine, 2, message);
 	}
-	
-	printf("exiting...\n");
-	pthread_exit(NULL);
-	exit(0);
 }
 
 
@@ -199,12 +242,17 @@ void *recvMessage(void* socket)
 	int readMsg;
 	int server_socket = *((int*)socket);
 	
-	memset(message, 0, 79);	// reset buffer
-	while(1)
+	while(keepRunning)
 	{
-		memset(message,0,79);
-		readMsg = read(server_socket, message, 79);
-		printf("length of msg received %d\n", readMsg);
+		bzero(buffer, 80);
+        wrefresh(display_window);
+        wrefresh(input_window);
+        
+		readMsg = read(server_socket, buffer, 80);
+		
+		//Print on own terminal
+        mvwprintw(display_window, startingLine,3,buffer);
+		//printf("length of msg received %d\n", readMsg);
 		
 		if(readMsg > 0)
 		{
@@ -212,15 +260,11 @@ void *recvMessage(void* socket)
 			{
 
 			}
-			
-			printf("Message RCD: %s\n", message);
-			memset(message,0,79);
-			fflush(stdout);
 		}
 		else if(readMsg == 0)
 		{			
 			printf("Server disconnected\n");
-			exit(0);		// this will exit the reading thread from executing
+			//exit(0);		// this will exit the reading thread from executing
 			break;
 		}
 	}
