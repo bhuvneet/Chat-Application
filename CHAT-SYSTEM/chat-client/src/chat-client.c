@@ -17,13 +17,16 @@
 #include <unistd.h>		// to close socket
 #include <pthread.h>
 
-
 // move to common file
 #define MSG_SIZE	80
 #define ERROR		-1		
 #define CMD_ERROR	-2
 #define HOST_SEARCH_FAIL -3
 #define h_addr h_addr_list[0] /* for backward compatibility */
+#define MAX_ROW 10
+#define INITIAL_COL 3
+#define RCV_MSG_LENGTH 79
+#define RCV_MSG_SIZE 78
 
 // for displaying messages
 WINDOW *display_window;
@@ -214,19 +217,17 @@ void *sendMessage(void* socket)
 	char message[81] = {"\0"};		// use constant
 	int server_socket = *((int*)socket);
 	
-	//blankWin(display_window);		// clear the input screen for new input
-	
 	while(keepRunning)
 	{
 		blankWin(input_window);		// clear the input screen for new input
-        bzero(message, 81);
-        wrefresh(display_window);
-        wrefresh(input_window);
+      bzero(message, 81);
+      wrefresh(display_window);
+      wrefresh(input_window);
         
-        // get input message in bottom window
-        mvwgetnstr(input_window, getInput, 2, message, 80);	// limit to 80 characters
+      // get input message in bottom window
+      mvwgetnstr(input_window, getInput, 2, message, 80);	// limit to 80 characters
         
-        if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
+      if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
 		{
 			keepRunning = 0;
 			
@@ -263,36 +264,43 @@ void *sendMessage(void* socket)
 
 void *recvMessage(void* socket)
 {
-	char buffer[79];
+	char buffer[RCV_MSG_LENGTH];
 	int readMsg;
 	int server_socket = *((int*)socket);
 	int row = 1;
+	int col = INITIAL_COL;
 	
 	while(keepRunning)
 	{
-		bzero(buffer, 79);
-        wrefresh(display_window);
-        wrefresh(input_window);
+		bzero(buffer, RCV_MSG_LENGTH);										// clear buffer
+      wrefresh(display_window);												// refresh window
+		wrefresh(input_window);
         
-		readMsg = read(server_socket, buffer, 78);
+		readMsg = read(server_socket, buffer, RCV_MSG_SIZE);			// read message
 		
 		//Print on own terminal
-        mvwprintw(display_window, startingLine, 3, buffer);
-        startingLine++;
-		//printf("length of msg received %d\n", readMsg);
 		
 		if(readMsg > 0)
-		{
-			if (readMsg == 78)	// TODO when message length is 80 characters IP address in printed after time
+		{		
+			if (row > MAX_ROW)													// display maximum 10 lines
 			{
-
+				scroll(display_window);											// scroll messages
+				startingLine = MAX_ROW;											// stays at row 10
+				wmove(display_window, startingLine, col); 				// move cursor to the beginning
+				wclrtoeol(display_window); 									// clear the line
+				mvwprintw(display_window, startingLine, INITIAL_COL, buffer); 	// print message in the last line			
+			}
+			else
+			{
+				mvwprintw(display_window, startingLine, INITIAL_COL, buffer);	// display message
+      		startingLine++;													// increase position for the next line				
+				row++;																// counter for number of rows
 			}
 		}
-		else if(readMsg == 0)
+		else if(readMsg == 0)					// check if the connection is sill up
 		{			
 			printf("Server disconnected\n");
-			//exit(0);		// this will exit the reading thread from executing
-			break;
+			break;									// stop reading for new messages
 		}
 	}
 }
