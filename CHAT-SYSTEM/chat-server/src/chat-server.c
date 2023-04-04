@@ -1,13 +1,12 @@
 /*
-	Date:
-	Project:
-	By:
-	Description:
+	Date:			April 4, 2023
+	Project:		The Can We Talk System? - Assignment 4
+	By:				Bhuvneet Thakur, Maisa Wolff Resplande
+	Description:	This file conatins the logic for the Server code. This file contains the functions related to the Server side of the assignment.
 */
 
 #define _REENTRANT
 
-#include "../../common/inc/common.h"
 #include "../inc/chat-server.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,8 +19,10 @@
 #include <pthread.h>
 #include <time.h>		// to calculate current time
 
-static int numClients = 0;	// to keep track of total clients connected
-static int keepRunning = 1;
+
+
+static int numClients 	= 0;	// to keep track of total clients connected
+static int keepRunning 	= 1;
 
 ConnectedClients connected_client[MAX_CLIENTS];
 Threads client_thread[MAX_CLIENTS];
@@ -35,21 +36,17 @@ void formatMessage(char* message, int whichClient, int isSender);
 void getCurrentTime(char* whatTime);
 void shutdown_signal(int client_socket);
 
-int main()
+int main(void)
 {	
 	
-	//int server_socket;
 	struct sockaddr_in server, client;
-	
-	//int clientSockets[MAX_CLIENTS];	// data structure holds all sockets
-	
 	
 	// create socket
 	sockets.server_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if(sockets.server_socket == -1)
+	if(sockets.server_socket == ERROR)
 	{
 		printf("ERROR: %s\n", hstrerror(errno));
-		return 0;
+		return ERROR;
 	}
 	
 	// initialize socket
@@ -62,7 +59,7 @@ int main()
   	if(bind(sockets.server_socket,(struct sockaddr *)&server, sizeof(server)) < 0)
   	{
   		printf("ERROR: %s\n", hstrerror(errno));
-		return 0;
+		return ERROR;
   	}
   	
   	// listen for connections
@@ -75,7 +72,7 @@ int main()
   	while(keepRunning)
   	{	
   		printf("keep running: %d\n", keepRunning);
-  		if (numClients == 9)
+  		if (numClients == MAX_CLIENTS)
   		{
   			break;
   		}
@@ -90,12 +87,6 @@ int main()
 	  	}
 	  	else
 	  	{
-	  		if (keepRunning == 0)
-	  		{
-	  			("exiting server...\n");
-	  			break;
-	  		}
-	  		
 	  		sockets.clientSockets[numClients] = new_connection;	// add connected client to list
 	  		printf("socket # %d:\n", sockets.clientSockets[numClients]);
 
@@ -106,32 +97,25 @@ int main()
 				if (pthread_create(&client_thread[numClients].client_threads, NULL, client_handler, (void *)&new_connection))
 				{
 					printf("ERROR host ID: %s\n", strerror(errno));
-					return 0;	// change this to constant
+					return ERROR;	
 				}	
-			}
-			
+			}		
 	  	}
   	}
-
-	/*printf("Stop listening");
-  	int numOfThreads = sizeof(client_thread[numClients].client_threads) / sizeof(client_thread[0].client_threads);
-	
-	printf("number of threads: %d\n", numOfThreads);
-	
-	// wait for all clients to finish
-	for(int i = 0; i < numOfThreads; i++)
-	{
-		pthread_join(client_thread[numClients].client_threads, NULL);
-	}
-
-	printf("Closing the server");
-	
-	// close socket
-	//close(server_socket);*/
 	
 	return 0;
 }
 
+/*
+	Function:		shutdown_signal()
+	Parameters:		int client_socket
+	Output:			NONE
+	Return value:	NONE	
+	Description:	This function is invoked each time a client is disconnected and removed from the array.
+					This function closes the client socket and if the server is to be shut down, it ensures to join all threads and closes the server socket.
+					This function checks if the server needs to be shut down as there are no more clients connected.
+					Hence, by implementing the logic in this function, a graceful shutdown of server
+*/
 void shutdown_signal(int client_socket)
 {
 	printf("in watchdog timer\n");
@@ -139,9 +123,6 @@ void shutdown_signal(int client_socket)
 	printf("closing socket\n");
 	close(client_socket);	// close client connection
 	printf("closed 1\n");
-	//fflush(stdout);
-	//pthread_exit(NULL);
-	//printf("closed2\n");
 				
 	// keepRunning is being set to 0 in removeClientFromArray function
 	if((keepRunning == 0) && (numClients == 0))
@@ -166,18 +147,26 @@ void shutdown_signal(int client_socket)
 	}
 }
 
-// send and receive messages from clients
+/*
+	Function:		client_handler()
+	Parameters:		void* client_socket
+	Output:			NONE
+	Return value:	void*	
+	Description:	This function is invoked each time a client is connected to the server and a new thread is created for each client.
+					This function reads the message from the clients, checks if its ">>bye<<" and broadcasts the message to other clients by calling 
+					the broadcast_message().
+*/
 void *client_handler(void* client_socket)
 {
 	int client_sock = *(int *)client_socket;
-	char buffer[1024] = {"\0"};
+	char buffer[BUFF_SIZE] = {"\0"};
 	char* returnVal;
 	int readMsg;
 	int i = 0;
 	
 	while (numClients > 0)
 	{
-		while ((readMsg = read(client_sock, buffer, 1024)) > 0)
+		while ((readMsg = read(client_sock, buffer, BUFF_SIZE)) > 0)
 		{
 			printf("received from client: %s\n", buffer);
 			
@@ -191,9 +180,6 @@ void *client_handler(void* client_socket)
 				}
 				
 				shutdown_signal(client_sock);	// close socket, join threads and shutdown server
-				/*close(client_sock);	// close client connection
-				fflush(stdout);
-				pthread_exit(&numClients);*/
 				
 				break;
 			}
@@ -235,18 +221,23 @@ void *client_handler(void* client_socket)
 				broadcast_message(client_sock, buffer);
 		  	}
 			
-			memset(buffer, 0, 1024);
+			memset(buffer, 0, BUFF_SIZE);
 		}
 	}
-	
-	//shutdown(client_sock, SHUT_RDWR);
-	
 }
 
-// send message to all clients
+/*
+	Function:		broadcast_message()
+	Parameters:		int sender, char* messageToSend
+	Output:			NONE
+	Return value:	void
+	Description:	This function is invoked each time a client sends a message to the server. The message is formatted, by calling the formatMessage() function and
+					broadcasted to all connected clients. If the message received is greater than 40 characters, this function breaks the message into packets
+					before calling the formatMessage() function.
+*/
 void broadcast_message(int sender, char* messageToSend)
 {
-	char sendMsg[1024];
+	char sendMsg[BUFF_SIZE];
 	
 	int senderIndx;
 	
@@ -254,9 +245,9 @@ void broadcast_message(int sender, char* messageToSend)
 	
 	int numPacket;
 	
-	char packet[2][1024];
-	char fstPacket[1024];
-	char sndPacket[1024];
+	char packet[2][BUFF_SIZE];
+	char fstPacket[BUFF_SIZE];
+	char sndPacket[BUFF_SIZE];
 	
 	strcpy(sendMsg, messageToSend);	// keep track of the original message sent by sender
 	
@@ -265,11 +256,7 @@ void broadcast_message(int sender, char* messageToSend)
 	{
 		if(connected_client[i].client_socket == sender)
 		{			
-			//formatMessage(messageToSend, i, 1);
 			senderIndx = i;	// get sender's index
-			
-			// send a formatted reponse to sender
-			//write(connected_client[i].client_socket, messageToSend , strlen(messageToSend));	
 		}
 	}
 	
@@ -277,20 +264,20 @@ void broadcast_message(int sender, char* messageToSend)
 	msgLength = strlen(sendMsg);
 
 	// if message is less than / equal to 40 characters
-	if (msgLength <= 40)
+	if (msgLength <= PACKET_SIZE)
 	{
 		numPacket = 1;
-		memset(packet[0], 0, 1024);
-		memset(packet[1], 0, 1024);
+		memset(packet[0], 0, BUFF_SIZE);
+		memset(packet[1], 0, BUFF_SIZE);
 
-		memcpy(packet[0], sendMsg, 40);
+		memcpy(packet[0], sendMsg, PACKET_SIZE);
 
 		// send packets to sender
 		formatMessage(packet[0], senderIndx, 1);
 		write(connected_client[senderIndx].client_socket, packet[0] , strlen(packet[0]));
 		printf("sent: %s\n",packet[0]);
 
-		memcpy(packet[0], sendMsg, 40);		// packet[] has been overwritten, reset to the original message
+		memcpy(packet[0], sendMsg, PACKET_SIZE);		// packet[] has been overwritten, reset to the original message
 		for (int j = 0; j < numPacket; j++)
 		{
 			formatMessage(packet[j], senderIndx, 0);
@@ -314,23 +301,23 @@ void broadcast_message(int sender, char* messageToSend)
 		numPacket = 2;
 		
 		// clear the buffer
-		memset(packet[0], 0, 1024);
-		memset(packet[1], 0, 1024);
+		memset(packet[0], 0, BUFF_SIZE);
+		memset(packet[1], 0, BUFF_SIZE);
 
-		if (sendMsg[40] == 32)
+		if (sendMsg[PACKET_SIZE] == 32)
 		{
 			// check if char at index 40 is an empty space
 			//break message at index 40
-			memcpy(packet[0], sendMsg, 40); 		// first 40 characters
+			memcpy(packet[0], sendMsg, PACKET_SIZE); 		// first 40 characters
 			printf("1st packet: %s\n", packet[0]);
-			memcpy(packet[1], sendMsg+41, 40); 		// second part of the message
+			memcpy(packet[1], sendMsg+41, PACKET_SIZE); 		// second part of the message
 			printf("2nd packet: %s\n", packet[1]);
 		}
 		else
 		{		
 			//break next to the last empty space before 40 characters
 
-			memcpy(packet[0], sendMsg, 40); // first 40 characters
+			memcpy(packet[0], sendMsg, PACKET_SIZE); // first 40 characters
 			printf("1st packet: %s\n", packet[0]);				
 
 			int i = 0;
@@ -346,7 +333,7 @@ void broadcast_message(int sender, char* messageToSend)
 		 		i++;
 			}
 			
-			memset(packet[0], 0, 1024);				// clear the buffer
+			memset(packet[0], 0, BUFF_SIZE);				// clear the buffer
 			memcpy(packet[0], sendMsg, index+1); 	// first part of the message
 			printf("1st packet: %s\n", packet[0]);	
 
@@ -356,18 +343,17 @@ void broadcast_message(int sender, char* messageToSend)
 			
 		}
 
-		// TODO still need to diplay the formatted for the client who sent the message after breaking it
+		// send packets to sender
 		for (int j = 0; j < numPacket; j++)
 		{
 			strcpy(sendMsg, packet[j]);		// to prevent overwriting the broken up message
-			// send packets to sender
 			formatMessage(sendMsg, senderIndx, 1);
 			write(connected_client[senderIndx].client_socket, sendMsg, strlen(sendMsg));
 
 			int len = strlen(sendMsg);
 			printf("sent: %s\n", sendMsg);
 			printf("length: %d\n", len);
-			memset(sendMsg, 0, 1024);
+			memset(sendMsg, 0, BUFF_SIZE);
 		}
 		
 		// send packets to all other clients
@@ -389,35 +375,32 @@ void broadcast_message(int sender, char* messageToSend)
 			int len = strlen(sendMsg);
 			printf("sent: %s\n", sendMsg);
 			printf("length: %d\n", len);
-			memset(sendMsg, 0, 1024);
+			memset(sendMsg, 0, BUFF_SIZE);
 		}
 	}
 }
 
-
+/*
+	Function:		formatMessage()
+	Parameters:		char* message, int whichClient, int isSender
+	Output:			NONE
+	Return value:	void	
+	Description:	This function is invoked by broadcast_message() function. This function created the formatted message to be broadcasted to all clients.
+*/
 void formatMessage(char* message, int whichClient, int isSender)
 {
 	int length = 0;
-	char senderMessage[1024];
+	char senderMessage[BUFF_SIZE];
 	char whatTime[TIME_LEN];
 	getCurrentTime(whatTime);
 	strcpy(senderMessage, message);	// keep track of the message
 	
-	// POSITION 1 - 15 				= IP
-	// POSITION 16, 24, 27, 28 		= SPACES
-	// POSITION 17 					= [
-	// POSITION 18 - 22 			= USERID
-	// POSITION 23 					= ]
-	// POSITION 25, 26 				= >> OR <<
-	// POSITION 28 - 68 			= MESSAGE (UP TO 40 chars)
-	// POSITION 69 - 78 			= (HH:MM:SS)
-	
-	memset(message, 0, 1024);
+	memset(message, 0, BUFF_SIZE);
 
 	length = strlen(connected_client[whichClient].clientIP);		// get size of IP
-	if(length <= 15)
+	if(length <= (MAX_IP-1))
 	{
-		while(length < 15)
+		while(length < (MAX_IP-1))
 		{
 			strcat(connected_client[whichClient].clientIP, " ");
 			length++;
@@ -430,9 +413,9 @@ void formatMessage(char* message, int whichClient, int isSender)
 	
 	length = strlen(connected_client[whichClient].userID);			// get size of the userID
 	printf("connected_client[whichClient].userID: %s\n", connected_client[whichClient].userID);
-	if(length <= 5)
+	if(length <= (MAX_USERID-1))
 	{
-		while(length < 5)
+		while(length < (MAX_USERID-1))
 		{
 			strcat(connected_client[whichClient].userID, " ");
 			length++;
@@ -455,10 +438,9 @@ void formatMessage(char* message, int whichClient, int isSender)
 	length = strlen(senderMessage);	// get size of the message
 	printf("size: %d\n", length);
 	
-	// TODO message should be maximum of 40 characters
-	if(length <= 40)	// if message length is less than 40
+	if(length <= PACKET_SIZE)		// if message length is less than 40
 	{
-		while(length < 40)
+		while(length < PACKET_SIZE)
 		{
 			// append white space to message array
 			strcat(senderMessage, " ");
@@ -482,6 +464,14 @@ void formatMessage(char* message, int whichClient, int isSender)
 	strcat(message, "\0");	// null terminate string
 }
 
+/*
+	Function:		getCurrentTime()
+	Parameters:		char* whatTime
+	Output:			NONE
+	Return value:	NONE
+	Description:	This function is invoked each time a message needs to be formatted for broadcasting to all clients. It calcuates the current time, 
+					and fills the char array passed as the parameter.
+*/
 void getCurrentTime(char* whatTime)
 {
 	time_t currentTime;
@@ -493,7 +483,15 @@ void getCurrentTime(char* whatTime)
 	strftime(whatTime, 9, "%H:%M:%S", timeIs);
 }
 
-// remove sender from array and update the number of clients
+/*
+	Function:		removeClientFromArray()
+	Parameters:		int sender
+	Output:			NONE
+	Return value:	int status
+	Description:	This function is invoked each time a client sends a ">>bye<<" message to the server. The client is removed from the connected_client array and a status is returned.
+					This function also checks if the numClients (static global variable) has reached zero, it then changed keepRunning (static global variable) to 0. 
+					This helps in determining if the server needs to be shutdown.
+*/
 int removeClientFromArray(int sender)
 {
 	// flag to determine if the client was found
@@ -527,7 +525,6 @@ int removeClientFromArray(int sender)
 		numClients--;	// update number of clients
 		printf("client removed. number of clients: %d\n", numClients);
 		
-		
 		client_removed = TRUE;	
 	}
 	else
@@ -539,7 +536,6 @@ int removeClientFromArray(int sender)
 		printf("keep running is being set to 0\n");
 		keepRunning = 0;	// this will prevent while loop in main to accept more connections
 	}
-	//shutdown_signal();	// check if server needs to shutdown
 
 	return client_removed;
 }

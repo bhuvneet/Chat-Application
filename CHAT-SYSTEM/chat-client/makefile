@@ -5,13 +5,13 @@
 
 # final binary:
 
-./bin/chat-client: ../common/obj/common.o ./obj/chat-client.o
-		cc ./obj/chat-client.o -lncurses ../common/obj/common.o -o ./bin/chat-client -lpthread
+./bin/chat-client: ./obj/chat-client.o
+		cc ./obj/chat-client.o -lncurses -o ./bin/chat-client -lpthread
 	
 	
 # dependencies:	
 
-./obj/chat-client.o: ./src/chat-client.c ../common/inc/common.h
+./obj/chat-client.o: ./src/chat-client.c ./inc/chat-client.h
 		cc -c ./src/chat-client.c -o ./obj/chat-client.o
 	
 # other targets:

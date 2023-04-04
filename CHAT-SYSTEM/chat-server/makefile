@@ -5,14 +5,13 @@
 
 # final binary:
 
-./bin/chat-server: ./obj/chat-server.o ../common/obj/common.o
-		cc ./obj/chat-server.o ../common/obj/common.o -o ./bin/chat-server -lpthread
+./bin/chat-server: ./obj/chat-server.o
+		cc ./obj/chat-server.o -o ./bin/chat-server -lpthread
 		
-	
 	
 # dependencies:	
 
-./obj/chat-server.o: ./src/chat-server.c ../common/inc/common.h
+./obj/chat-server.o: ./src/chat-server.c ./inc/chat-server.h
 		cc -c ./src/chat-server.c -o ./obj/chat-server.o
 	
 # other targets:

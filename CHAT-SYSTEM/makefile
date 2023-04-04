@@ -6,13 +6,11 @@
 # other targets:
 
 all: 
-	(cd common; make -f makefile)
 	(cd chat-client; make -f makefile)
 	(cd chat-server; make -f makefile)
 	
 	
 clean:
-	(cd common; make -f makefile clean)
 	(cd chat-client; make -f makefile clean)
 	(cd chat-server; make -f makefile clean)
 	
