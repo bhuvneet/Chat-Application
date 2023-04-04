@@ -1,6 +1,7 @@
 /*
 	Date:			April 4, 2023
 	Project:		The Can We Talk System? - Assignment 4
+	File:			chat-client.c
 	By:				Bhuvneet Thakur, Maisa Wolff Resplande
 	Description:	This file conatins the logic for the Client code. This file contains the functions related to the Client side of the assignment.
 */
@@ -61,18 +62,12 @@ int main (int argc, char *argv[])
 		return ERROR;
 	}
 	
-	printf("%s\n", argv[0]);
-	printf("%s\n", argv[1]);
-	printf("%s\n", argv[2]);
-	
 	char* returnVal = strstr(argv[2], "-server");	// point to the root folder of the project
-	//printf("%d\n", returnVal);	// returns 0 
 	
 	char* hostID = strrchr(returnVal, 'r');
 	
 	// point to last occurence of r in "server" - this is where IP address or server's name is passed as cmd arg
 	hostID++;
-	printf("%s\n", hostID);
 	
 	// get host name passed as command line argument
 	if((host = gethostbyname(hostID)) == NULL)
@@ -85,6 +80,7 @@ int main (int argc, char *argv[])
 	if((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)	// initialize socket using Address Family (IP version 4), Socket Stream (TCP protocol), and Protocol 0 (IP protocol).
 	{
 		printf("ERROR: %s\n", strerror(errno));
+		return ERROR;
 	}
 	
 	// connect socket to server socket using IP address and port number
@@ -97,6 +93,7 @@ int main (int argc, char *argv[])
 	if(connect(server_socket, (struct sockaddr *)&server, sizeof(server)) < 0)
 	{
 		printf("ERROR: %s\n", strerror(errno));
+		return ERROR;
 	}
 	else
 	{
@@ -113,9 +110,7 @@ int main (int argc, char *argv[])
 		box(input_window, 0, 0);
 
 		wsetscrreg(display_window,1,y/2-2);
-		wsetscrreg(input_window,1,y/2-2);
-		
-		//printf("connected with server!\n");
+		wsetscrreg(input_window,1,y/2-2);		
 		
 		// send first message to server for userID and IP address
 		getsockname(server_socket, (struct sockaddr *)&addr, &len);		// send server IP address of this client
@@ -130,7 +125,6 @@ int main (int argc, char *argv[])
 		strcat(message, "\0");	// null terminate the string
 		
 		write (server_socket, message, strlen (message));
-		printf("sent: %s\n",message);
 		memset(message, 0, BUFSIZ);
 
 		
@@ -298,7 +292,7 @@ void *recvMessage(void* socket)
 		}
 		else if(readMsg == 0)						// check if the connection is sill up
 		{			
-			printf("Server disconnected\n");
+			// Server disconnected
 			break;									// stop reading for new messages
 		}
 	}

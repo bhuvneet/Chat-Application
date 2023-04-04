@@ -1,3 +1,10 @@
+/*
+	Date:			April 4, 2023
+	Project:		The Can We Talk System? - Assignment 4
+	File:			chat-server.h
+	By:				Bhuvneet Thakur, Maisa Wolff Resplande
+	Description:	This file conatins the struct definitions and constants for the Server code.
+*/
 
 #include <pthread.h>
 #define MAX_CLIENTS 		9	//numClient begins from 0; so total clients are 10
@@ -11,6 +18,8 @@
 #define FALSE 				0
 #define MSG_SIZE			80
 #define BUFF_SIZE			1024
+#define	WHITE_SPACE			32
+#define TOTAL_PACKETS		2
 
 typedef struct
 {
@@ -30,9 +39,3 @@ typedef struct
 	int clientSockets[MAX_CLIENTS];
 	int server_socket;
 } Sockets;
-
-// to hold last 10 messages with IP address, userID and messages in char array format
-typedef struct
-{
-	char prevMsgs[1024];
-}prevMsgs;

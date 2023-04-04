@@ -1,6 +1,7 @@
 /*
 	Date:			April 4, 2023
 	Project:		The Can We Talk System? - Assignment 4
+	File:			chat-server.c
 	By:				Bhuvneet Thakur, Maisa Wolff Resplande
 	Description:	This file conatins the logic for the Server code. This file contains the functions related to the Server side of the assignment.
 */
@@ -71,7 +72,6 @@ int main(void)
     
   	while(keepRunning)
   	{	
-  		printf("keep running: %d\n", keepRunning);
   		if (numClients == MAX_CLIENTS)
   		{
   			break;
@@ -88,7 +88,6 @@ int main(void)
 	  	else
 	  	{
 	  		sockets.clientSockets[numClients] = new_connection;	// add connected client to list
-	  		printf("socket # %d:\n", sockets.clientSockets[numClients]);
 
 			numClients++;		// increment the number of clients connected	
 			
@@ -118,30 +117,23 @@ int main(void)
 */
 void shutdown_signal(int client_socket)
 {
-	printf("in watchdog timer\n");
-	
-	printf("closing socket\n");
+
 	close(client_socket);	// close client connection
-	printf("closed 1\n");
 				
 	// keepRunning is being set to 0 in removeClientFromArray function
 	if((keepRunning == 0) && (numClients == 0))
 	{
 		// join all threads
 		int numOfThreads = sizeof(client_thread[numClients].client_threads) / sizeof(client_thread[0].client_threads);
-	
-		printf("number of threads: %d\n", numOfThreads);
 		
 		// wait for all clients to finish
 		for(int i = 0; i < numOfThreads; i++)
 		{
 			pthread_join(client_thread[numClients].client_threads, NULL);
 		}
-		
-		printf("closing server\n");
+
 		// close server socket
 		close(sockets.server_socket);
-		printf("closed\n");
 		
 		exit(-1);
 	}
@@ -168,7 +160,6 @@ void *client_handler(void* client_socket)
 	{
 		while ((readMsg = read(client_sock, buffer, BUFF_SIZE)) > 0)
 		{
-			printf("received from client: %s\n", buffer);
 			
 			if (strcmp(buffer, ">>bye<<") == 0)
 		  	{	
@@ -176,7 +167,7 @@ void *client_handler(void* client_socket)
 				int client_removed = removeClientFromArray(client_sock);
 		  		if (client_removed == ERROR)
 				{
-					printf("ERROR: Client not found.\n");
+					return (void*)ERROR;
 				}
 				
 				shutdown_signal(client_sock);	// close socket, join threads and shutdown server
@@ -217,7 +208,6 @@ void *client_handler(void* client_socket)
 		  	{
 		  		// send a reponse to all clients excpet the sender
 				// format the message first before invoking this function
-				printf("broadcasting...\n");
 				broadcast_message(client_sock, buffer);
 		  	}
 			
@@ -245,7 +235,7 @@ void broadcast_message(int sender, char* messageToSend)
 	
 	int numPacket;
 	
-	char packet[2][BUFF_SIZE];
+	char packet[TOTAL_PACKETS][BUFF_SIZE];
 	char fstPacket[BUFF_SIZE];
 	char sndPacket[BUFF_SIZE];
 	
@@ -275,7 +265,6 @@ void broadcast_message(int sender, char* messageToSend)
 		// send packets to sender
 		formatMessage(packet[0], senderIndx, 1);
 		write(connected_client[senderIndx].client_socket, packet[0] , strlen(packet[0]));
-		printf("sent: %s\n",packet[0]);
 
 		memcpy(packet[0], sendMsg, PACKET_SIZE);		// packet[] has been overwritten, reset to the original message
 		for (int j = 0; j < numPacket; j++)
@@ -291,34 +280,29 @@ void broadcast_message(int sender, char* messageToSend)
 					write(connected_client[i].client_socket, packet[j] , strlen(packet[j]));
 				}
 			}
-
-			printf("sent: %s\n",packet[j]);
 		}
 	}
 	// else if message is greater than 40 characters
 	else
 	{
-		numPacket = 2;
+		numPacket = TOTAL_PACKETS;
 		
 		// clear the buffer
 		memset(packet[0], 0, BUFF_SIZE);
 		memset(packet[1], 0, BUFF_SIZE);
 
-		if (sendMsg[PACKET_SIZE] == 32)
+		if (sendMsg[PACKET_SIZE] == WHITE_SPACE)
 		{
 			// check if char at index 40 is an empty space
 			//break message at index 40
-			memcpy(packet[0], sendMsg, PACKET_SIZE); 		// first 40 characters
-			printf("1st packet: %s\n", packet[0]);
+			memcpy(packet[0], sendMsg, PACKET_SIZE); 			// first 40 characters
 			memcpy(packet[1], sendMsg+41, PACKET_SIZE); 		// second part of the message
-			printf("2nd packet: %s\n", packet[1]);
 		}
 		else
 		{		
 			//break next to the last empty space before 40 characters
 
-			memcpy(packet[0], sendMsg, PACKET_SIZE); // first 40 characters
-			printf("1st packet: %s\n", packet[0]);				
+			memcpy(packet[0], sendMsg, PACKET_SIZE); // first 40 characters			
 
 			int i = 0;
 			int index = 0;
@@ -326,7 +310,7 @@ void broadcast_message(int sender, char* messageToSend)
 			// loop the string until the end
 			while(packet[0][i] != '\0')
 		  	{
-		  		if(packet[0][i] == 32)  
+		  		if(packet[0][i] == WHITE_SPACE)  
 				{
 		  			index = i;		// get the index of the last empty space in the string
 		 		}
@@ -334,12 +318,10 @@ void broadcast_message(int sender, char* messageToSend)
 			}
 			
 			memset(packet[0], 0, BUFF_SIZE);				// clear the buffer
-			memcpy(packet[0], sendMsg, index+1); 	// first part of the message
-			printf("1st packet: %s\n", packet[0]);	
+			memcpy(packet[0], sendMsg, index+1); 			// first part of the message
 
 
-			memcpy(packet[1], sendMsg+index+1, 60); // second part of the message
-			printf("2nd packet: %s\n", packet[1]);
+			memcpy(packet[1], sendMsg+index+1, 60); 		// second part of the message
 			
 		}
 
@@ -350,9 +332,6 @@ void broadcast_message(int sender, char* messageToSend)
 			formatMessage(sendMsg, senderIndx, 1);
 			write(connected_client[senderIndx].client_socket, sendMsg, strlen(sendMsg));
 
-			int len = strlen(sendMsg);
-			printf("sent: %s\n", sendMsg);
-			printf("length: %d\n", len);
 			memset(sendMsg, 0, BUFF_SIZE);
 		}
 		
@@ -371,10 +350,7 @@ void broadcast_message(int sender, char* messageToSend)
 					write(connected_client[i].client_socket, sendMsg , strlen(sendMsg));
 				}
 			}
-
-			int len = strlen(sendMsg);
-			printf("sent: %s\n", sendMsg);
-			printf("length: %d\n", len);
+			
 			memset(sendMsg, 0, BUFF_SIZE);
 		}
 	}
@@ -406,13 +382,11 @@ void formatMessage(char* message, int whichClient, int isSender)
 			length++;
 		}
 		strcpy(message, connected_client[whichClient].clientIP);	// get sender's IP
-		printf("IP: %s\n", message);
 	}
 	
 	strcat(message, " [");	// bracket
 	
 	length = strlen(connected_client[whichClient].userID);			// get size of the userID
-	printf("connected_client[whichClient].userID: %s\n", connected_client[whichClient].userID);
 	if(length <= (MAX_USERID-1))
 	{
 		while(length < (MAX_USERID-1))
@@ -421,7 +395,6 @@ void formatMessage(char* message, int whichClient, int isSender)
 			length++;
 		}
 		strcat(message, connected_client[whichClient].userID);		// get sender's ID
-		printf("ID: %s\n", message);
 	}
 	
 	strcat(message, "] ");	// bracket
@@ -436,7 +409,6 @@ void formatMessage(char* message, int whichClient, int isSender)
 	}
 	
 	length = strlen(senderMessage);	// get size of the message
-	printf("size: %d\n", length);
 	
 	if(length <= PACKET_SIZE)		// if message length is less than 40
 	{
@@ -447,14 +419,11 @@ void formatMessage(char* message, int whichClient, int isSender)
 			length++;
 		}
 		strcat(message, senderMessage);	
-		printf("message: %s\n", message);
-		printf("message: %s\n", senderMessage);
 	}
 	else
 	{
 		// no need to append blank space after the message
 		strcat(message, senderMessage);	
-		printf("message: %s\n", message);
 	}
 	
 	// get time
@@ -523,7 +492,6 @@ int removeClientFromArray(int sender)
 		}
 		
 		numClients--;	// update number of clients
-		printf("client removed. number of clients: %d\n", numClients);
 		
 		client_removed = TRUE;	
 	}
@@ -533,7 +501,6 @@ int removeClientFromArray(int sender)
 	}
 	if (numClients == 0)
 	{
-		printf("keep running is being set to 0\n");
 		keepRunning = 0;	// this will prevent while loop in main to accept more connections
 	}
 
