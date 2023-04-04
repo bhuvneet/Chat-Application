@@ -17,13 +17,16 @@
 #include <unistd.h>		// to close socket
 #include <pthread.h>
 
-
 // move to common file
 #define MSG_SIZE	80
 #define ERROR		-1		
 #define CMD_ERROR	-2
 #define HOST_SEARCH_FAIL -3
 #define h_addr h_addr_list[0] /* for backward compatibility */
+#define MAX_ROW 10
+#define INITIAL_COL 3
+#define RCV_MSG_LENGTH 79
+#define RCV_MSG_SIZE 78
 
 // for displaying messages
 WINDOW *display_window;
@@ -147,7 +150,6 @@ int main (int argc, char *argv[])
 		memset(message, 0, 1024);
 
 		
-		
 		void* arg;
 		// launch sending thread to send messages to server
 		if(pthread_create(&send_thread, NULL, sendMessage, (void *)&server_socket))
@@ -156,6 +158,7 @@ int main (int argc, char *argv[])
 			return 0;
 		}	
 		
+		// launch receiving thread to receive messages from server
 		if(pthread_create(&recv_thread, NULL, recvMessage, (void *)&server_socket))
 		{
 			printf("ERROR host ID: %s\n", strerror(errno));
@@ -166,15 +169,7 @@ int main (int argc, char *argv[])
 		
 		// wait for threads to finish
 		pthread_join(send_thread, NULL);
-		pthread_join(recv_thread, NULL);					
-
-		
-		//endwin();							// End curses mode - this will free memory taken by ncurses sub0system and its data structures and put terminal back in normal mode.
-		
-		// create one thread to send outgoing message
-		
-		// create another thread to read from socket
-		
+		pthread_join(recv_thread, NULL);						
 		
 	}	
 	
@@ -182,11 +177,16 @@ int main (int argc, char *argv[])
 	
 }
 
-WINDOW* createOutputWin(int height, int width, int x, int y)
-{
-	
-}
 
+
+/*
+	Function:		void blankWin()
+	Author:			Sam Hsu (11/17/10)
+	Parameters:		WINDOW *win: window from ncurses library
+	Output:			NONE
+	Return value:	NONE	
+	Description:	Clear all text from specified window and reset the box. 
+*/
 void blankWin(WINDOW *win)
 {
   int i;
@@ -202,31 +202,49 @@ void blankWin(WINDOW *win)
   }
   box(win, 0, 0);             /* draw the box again */
   wrefresh(win);
-}  /* blankWin */
+}
 
+
+
+/*
+	Function:		void destroy_win()
+	Author:			Sam Hsu (11/17/10)
+	Parameters:		WINDOW *win: window from ncurses library
+	Output:			NONE
+	Return value:	NONE	
+	Description:	Delete the specified window. 
+*/
 void destroy_win(WINDOW *win)
 {
   delwin(win);
 }  /* destory_win */
 
+
+
+/*
+	Function:		void *sendMessage()
+	Parameters:		void* socket: client socket
+	Output:			Curses window displaying the input in a chat.
+	Return value:	NONE	
+	Description:	This function gets input and display it in the botton window of curses. 
+						The input accepts maximum 80 characters.
+*/
 void *sendMessage(void* socket)
 {
 	char message[81] = {"\0"};		// use constant
 	int server_socket = *((int*)socket);
 	
-	//blankWin(display_window);		// clear the input screen for new input
-	
 	while(keepRunning)
 	{
 		blankWin(input_window);		// clear the input screen for new input
-        bzero(message, 81);
-        wrefresh(display_window);
-        wrefresh(input_window);
+      bzero(message, 81);
+      wrefresh(display_window);
+      wrefresh(input_window);
         
-        // get input message in bottom window
-        mvwgetnstr(input_window, getInput, 2, message, 80);	// limit to 80 characters
+      // get input message in bottom window
+      mvwgetnstr(input_window, getInput, 2, message, 80);	// limit to 80 characters
         
-        if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
+      if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
 		{
 			keepRunning = 0;
 			
@@ -260,39 +278,52 @@ void *sendMessage(void* socket)
 	}
 }
 
-
+/*
+	Function:		void *recvMessage()
+	Parameters:		void* socket: client socket
+	Output:			Curses window displaying messages sent and received in a chat.
+	Return value:	NONE	
+	Description:	This function reads the message sent by the server and display it in the top window of curses.
+*/
 void *recvMessage(void* socket)
 {
-	char buffer[79];
+	char buffer[RCV_MSG_LENGTH];
 	int readMsg;
 	int server_socket = *((int*)socket);
 	int row = 1;
+	int col = INITIAL_COL;
 	
 	while(keepRunning)
 	{
-		bzero(buffer, 79);
-        wrefresh(display_window);
-        wrefresh(input_window);
+		bzero(buffer, RCV_MSG_LENGTH);										// clear buffer
+      wrefresh(display_window);												// refresh window
+		wrefresh(input_window);
         
-		readMsg = read(server_socket, buffer, 78);
+		readMsg = read(server_socket, buffer, RCV_MSG_SIZE);			// read message
 		
 		//Print on own terminal
-        mvwprintw(display_window, startingLine, 3, buffer);
-        startingLine++;
-		//printf("length of msg received %d\n", readMsg);
 		
 		if(readMsg > 0)
-		{
-			if (readMsg == 78)	// TODO when message length is 80 characters IP address in printed after time
+		{		
+			if (row > MAX_ROW)													// display maximum 10 lines
 			{
-
+				scroll(display_window);											// scroll messages
+				startingLine = MAX_ROW;											// stays at row 10
+				wmove(display_window, startingLine, col); 				// move cursor to the beginning
+				wclrtoeol(display_window); 									// clear the line
+				mvwprintw(display_window, startingLine, INITIAL_COL, buffer); 	// print message in the last line			
+			}
+			else
+			{
+				mvwprintw(display_window, startingLine, INITIAL_COL, buffer);	// display message
+      		startingLine++;													// increase position for the next line				
+				row++;																// counter for number of rows
 			}
 		}
-		else if(readMsg == 0)
+		else if(readMsg == 0)					// check if the connection is sill up
 		{			
 			printf("Server disconnected\n");
-			//exit(0);		// this will exit the reading thread from executing
-			break;
+			break;									// stop reading for new messages
 		}
 	}
 }
