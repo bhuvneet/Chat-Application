@@ -367,6 +367,7 @@ void broadcast_message(int sender, char* messageToSend)
 			int len = strlen(sendMsg);
 			printf("sent: %s\n", sendMsg);
 			printf("length: %d\n", len);
+			memset(sendMsg, 0, 1024);
 		}
 		
 		// send packets to all other clients
@@ -388,6 +389,7 @@ void broadcast_message(int sender, char* messageToSend)
 			int len = strlen(sendMsg);
 			printf("sent: %s\n", sendMsg);
 			printf("length: %d\n", len);
+			memset(sendMsg, 0, 1024);
 		}
 	}
 }
@@ -477,6 +479,7 @@ void formatMessage(char* message, int whichClient, int isSender)
 	strcat(message, " (");
 	strcat(message, whatTime);
 	strcat(message, ")");
+	strcat(message, "\0");	// null terminate string
 }
 
 void getCurrentTime(char* whatTime)
