@@ -122,8 +122,8 @@ int main (int argc, char *argv[])
     	input_window 		= newwin(y/2, 85, x/2, 0);
     	scrollok(display_window,TRUE);
     	scrollok(input_window,TRUE);
-    	box(display_window,'|','=');
-		box(input_window,'|','-');
+    	box(display_window, 0, 0);
+		box(input_window, 0, 0);
 
 		wsetscrreg(display_window,1,y/2-2);
 		wsetscrreg(input_window,1,y/2-2);
@@ -200,7 +200,7 @@ void blankWin(WINDOW *win)
     wclrtoeol(win);
     wrefresh(win);
   }
-  box(win, '|','-');             /* draw the box again */
+  box(win, 0, 0);             /* draw the box again */
   wrefresh(win);
 }  /* blankWin */
 
@@ -214,6 +214,8 @@ void *sendMessage(void* socket)
 	char message[81] = {"\0"};		// use constant
 	int server_socket = *((int*)socket);
 	
+	//blankWin(display_window);		// clear the input screen for new input
+	
 	while(keepRunning)
 	{
 		blankWin(input_window);		// clear the input screen for new input
@@ -222,7 +224,7 @@ void *sendMessage(void* socket)
         wrefresh(input_window);
         
         // get input message in bottom window
-        mvwgetstr(input_window, getInput, 2, message);
+        mvwgetnstr(input_window, getInput, 2, message, 80);	// limit to 80 characters
         
         if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
 		{
@@ -261,19 +263,18 @@ void *sendMessage(void* socket)
 
 void *recvMessage(void* socket)
 {
-	char message[79];
-	char buffer[80];
+	char buffer[81];
 	int readMsg;
 	int server_socket = *((int*)socket);
 	int row = 1;
 	
 	while(keepRunning)
 	{
-		bzero(buffer, 80);
+		bzero(buffer, 81);
         wrefresh(display_window);
         wrefresh(input_window);
         
-		readMsg = read(server_socket, buffer, 80);
+		readMsg = read(server_socket, buffer, 81);
 		
 		//Print on own terminal
         mvwprintw(display_window, startingLine, 3, buffer);
@@ -282,7 +283,7 @@ void *recvMessage(void* socket)
 		
 		if(readMsg > 0)
 		{
-			if (readMsg == 79)	// TODO when message length is 80 characters IP address in printed after time
+			if (readMsg == 81)	// TODO when message length is 80 characters IP address in printed after time
 			{
 
 			}
