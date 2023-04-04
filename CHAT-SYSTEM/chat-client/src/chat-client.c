@@ -150,7 +150,6 @@ int main (int argc, char *argv[])
 		memset(message, 0, 1024);
 
 		
-		
 		void* arg;
 		// launch sending thread to send messages to server
 		if(pthread_create(&send_thread, NULL, sendMessage, (void *)&server_socket))
@@ -159,6 +158,7 @@ int main (int argc, char *argv[])
 			return 0;
 		}	
 		
+		// launch receiving thread to receive messages from server
 		if(pthread_create(&recv_thread, NULL, recvMessage, (void *)&server_socket))
 		{
 			printf("ERROR host ID: %s\n", strerror(errno));
@@ -169,15 +169,7 @@ int main (int argc, char *argv[])
 		
 		// wait for threads to finish
 		pthread_join(send_thread, NULL);
-		pthread_join(recv_thread, NULL);					
-
-		
-		//endwin();							// End curses mode - this will free memory taken by ncurses sub0system and its data structures and put terminal back in normal mode.
-		
-		// create one thread to send outgoing message
-		
-		// create another thread to read from socket
-		
+		pthread_join(recv_thread, NULL);						
 		
 	}	
 	
@@ -185,11 +177,16 @@ int main (int argc, char *argv[])
 	
 }
 
-WINDOW* createOutputWin(int height, int width, int x, int y)
-{
-	
-}
 
+
+/*
+	Function:		void blankWin()
+	Author:			Sam Hsu (11/17/10)
+	Parameters:		WINDOW *win: window from ncurses library
+	Output:			NONE
+	Return value:	NONE	
+	Description:	Clear all text from specified window and reset the box. 
+*/
 void blankWin(WINDOW *win)
 {
   int i;
@@ -205,13 +202,33 @@ void blankWin(WINDOW *win)
   }
   box(win, 0, 0);             /* draw the box again */
   wrefresh(win);
-}  /* blankWin */
+}
 
+
+
+/*
+	Function:		void destroy_win()
+	Author:			Sam Hsu (11/17/10)
+	Parameters:		WINDOW *win: window from ncurses library
+	Output:			NONE
+	Return value:	NONE	
+	Description:	Delete the specified window. 
+*/
 void destroy_win(WINDOW *win)
 {
   delwin(win);
 }  /* destory_win */
 
+
+
+/*
+	Function:		void *sendMessage()
+	Parameters:		void* socket: client socket
+	Output:			Curses window displaying the input in a chat.
+	Return value:	NONE	
+	Description:	This function gets input and display it in the botton window of curses. 
+						The input accepts maximum 80 characters.
+*/
 void *sendMessage(void* socket)
 {
 	char message[81] = {"\0"};		// use constant
@@ -261,7 +278,13 @@ void *sendMessage(void* socket)
 	}
 }
 
-
+/*
+	Function:		void *recvMessage()
+	Parameters:		void* socket: client socket
+	Output:			Curses window displaying messages sent and received in a chat.
+	Return value:	NONE	
+	Description:	This function reads the message sent by the server and display it in the top window of curses.
+*/
 void *recvMessage(void* socket)
 {
 	char buffer[RCV_MSG_LENGTH];
