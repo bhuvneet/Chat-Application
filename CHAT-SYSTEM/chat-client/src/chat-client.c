@@ -193,7 +193,7 @@ void blankWin(WINDOW *win)
   int maxrow, maxcol;
      
   getmaxyx(win, maxrow, maxcol);
-  for (i = maxcol/2; i < 85; i++)  
+  for (i = 1; i < 85-2; i++)  
   {
     wmove(win, i, 1);
     refresh();
@@ -216,6 +216,7 @@ void *sendMessage(void* socket)
 	
 	while(keepRunning)
 	{
+		blankWin(input_window);		// clear the input screen for new input
         bzero(message, 81);
         wrefresh(display_window);
         wrefresh(input_window);
@@ -254,11 +255,6 @@ void *sendMessage(void* socket)
         
         // display message in top window
         mvwprintw(display_window, startingLine, 2, message);
-        
-        
-        wmove(win, i, 1);
-        
-        blankWin(input_window);		// clear the input screen for new input
 	}
 }
 
@@ -278,11 +274,6 @@ void *recvMessage(void* socket)
         wrefresh(input_window);
         
 		readMsg = read(server_socket, buffer, 80);
-		
-		//wmove(display_window, (row+1), 1);
-		//wprintw(display_window, message);
-		//wrefresh(display_window);
-		//row++;
 		
 		//Print on own terminal
         mvwprintw(display_window, startingLine, 3, buffer);
