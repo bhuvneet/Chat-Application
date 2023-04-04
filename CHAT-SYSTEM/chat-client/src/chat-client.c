@@ -263,18 +263,18 @@ void *sendMessage(void* socket)
 
 void *recvMessage(void* socket)
 {
-	char buffer[81];
+	char buffer[79];
 	int readMsg;
 	int server_socket = *((int*)socket);
 	int row = 1;
 	
 	while(keepRunning)
 	{
-		bzero(buffer, 81);
+		bzero(buffer, 79);
         wrefresh(display_window);
         wrefresh(input_window);
         
-		readMsg = read(server_socket, buffer, 81);
+		readMsg = read(server_socket, buffer, 78);
 		
 		//Print on own terminal
         mvwprintw(display_window, startingLine, 3, buffer);
@@ -283,7 +283,7 @@ void *recvMessage(void* socket)
 		
 		if(readMsg > 0)
 		{
-			if (readMsg == 81)	// TODO when message length is 80 characters IP address in printed after time
+			if (readMsg == 78)	// TODO when message length is 80 characters IP address in printed after time
 			{
 
 			}
