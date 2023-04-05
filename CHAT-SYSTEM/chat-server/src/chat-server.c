@@ -4,6 +4,42 @@
 	File:			chat-server.c
 	By:				Bhuvneet Thakur, Maisa Wolff Resplande
 	Description:	This file conatins the logic for the Server code. This file contains the functions related to the Server side of the assignment.
+	
+	MESSAGING SCHEME AND DATA STRUCTURE:
+	
+		1. Where and how Server gains knowledge of client's IP and userID?
+			- When the connection is established between client and the server, each client immediately sends a first message formatted as "FIRST|-userID|IPAddress", 
+			  to register themselves with the server.
+			- The Server stores the connected client's userID and IP in connected_client array (lines 251 to 276) declared in ConnectedClients struct (declared in chat-server.h file).
+			- The ConnectedClients struct holds the important information about the clients connected, such as their socket, userID, IPAddress and message.
+			- Using the ConnectedClients struct, the Server is able to keep track of the connected clients and send messages to all clients.
+		
+		2. How the Server handles >>bye<< message, shut down and clean up after the client, and clean up after itself when all clients have disconnected?
+			- The Server handles the ">>bye<<" message (lines 235 to 246) by removing client from the connected_client array, which is used to hold all necessary client information.
+			- The Server checks if it should shut down, by calling shutdown_signal() function, which checks if number of clients have reached 0 and 
+			  keepRunning variable has been switched to 0 by removeClientFromArray() function. The removeClientFromArray() function will switch keepRunning to 0 when numClients is 0.
+			- If the number of clients are 0 and keepRunning is 0 (switched inside removeClientFromArray()), the shutdown_signal() function will close the client socket to clean up after client,
+			  join all active threads and close the server socket, to clean up after itself, before exiting the application.
+			  
+		3. How your Server data structure is managing the list of all clients? Describe the structure, elements, values being stored for each client.
+			- The data structures being used the Server application are:
+				a)	Struct ConnectedClients - this struct consists of client socket, array for IP address, array for userID, array for message.
+												ConnectedClients consists of fields client_socket of type int, char array clientIP, char array userID[] and char array message[]
+												The connected_client array of type ConnectedClients is actively used throughout the application to add clients and 
+												remove the client when >>bye<< is sent.
+												This array is also used to find the index of the sender client, to format the message being broadcasted to all clients.
+												This array is looped to send messages to all clients in broadcast_message() function, as it contains information about all connected clients.
+				b)	Struct Threads 			- this struct Threads consists of client_threads field of type pthread_t to store all active threads.
+												The struct client_thread array of 10 elements, is used to create thread for each connected client. Once thread is created, it is added to this array
+												to keep track of all threads.
+												By keeping track of all threads in client_thread array, we are able to loop through this array shutdown_signal() and kill_signal() 
+												to join all active threads.
+				c)	Struct Sockets			- this struct consists of array of client sockets (10 elements) and server_socket.
+												The Sockets sockets variable consists of an array clientSockets[] of 10 elements and an int server_socket.
+												The sockets struct variable is used to keep track of all sockets.
+												When the application begins server_socket field is used to initialize, bind and connect the clients.
+												As each client is accepted by the server, the new socket is added to the clientSockets[] array.
+												By keeping track of all sockets, we are able to close all client sockets stored in the clientSockets[] to loop through in shutdown_signal() and 												kill_signal() functions, as well as close the server_socket.
 */
 
 #define _REENTRANT
