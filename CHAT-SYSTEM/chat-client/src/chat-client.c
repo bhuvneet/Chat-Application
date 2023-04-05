@@ -31,6 +31,7 @@ void destroy_win(WINDOW *win);
 void blankWin(WINDOW *win);
 
 static int keepRunning = 1;
+static int serverKilled = 0;
 
 int main (int argc, char *argv[])
 {
@@ -102,11 +103,11 @@ int main (int argc, char *argv[])
 		getmaxyx(stdscr, x, y);	// set up window dimensions
 		
 		// set up dimensions of screens
-		display_window 		= newwin(y/2, 90, 0, 0);
+		display_window 		= newwin(y/2, 100, 0, 0);
     	input_window 		= newwin(y/2, 90, x/2, 0);
     	scrollok(display_window,TRUE);
     	scrollok(input_window,TRUE);
-    	box(display_window, 0, 0);
+    	//box(display_window, 0, 0);
 		box(input_window, 0, 0);
 
 		wsetscrreg(display_window,1,y/2-2);
@@ -147,9 +148,22 @@ int main (int argc, char *argv[])
 		
 		// wait for threads to finish
 		pthread_join(send_thread, NULL);
-		pthread_join(recv_thread, NULL);						
+		pthread_join(recv_thread, NULL);
 		
+		
+		destroy_win(input_window);
+		// end window
+						
+		// destroy windows
+		destroy_win(display_window);
+
+		endwin();
+		
+		// close client socket
+		close(server_socket);
 	}	
+	
+	
 	
 	return 0;
 }
@@ -208,15 +222,18 @@ void *sendMessage(void* socket)
 	
 	while(keepRunning)
 	{
-	  blankWin(input_window);		// clear the input screen for new input
-      bzero(message, MSG_SIZE+1);
-      wrefresh(display_window);
-      wrefresh(input_window);
-        
-      // get input message in bottom window
-      mvwgetnstr(input_window, getInput, 2, message, MSG_SIZE);	// limit to 80 characters
-        
-      if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
+      if(!serverKilled)
+      {
+      
+     	blankWin(input_window);		// clear the input screen for new input
+	  	bzero(message, MSG_SIZE+1);
+	  	wrefresh(display_window);
+	 	wrefresh(input_window);
+	 	
+      	// get input message in bottom window
+      	mvwgetnstr(input_window, getInput, 2, message, MSG_SIZE);	// limit to 80 characters
+      	
+      	if(strcmp(message,">>bye<<") == 0) // check if the user wants to quit
 		{
 			keepRunning = 0;
 			
@@ -241,12 +258,19 @@ void *sendMessage(void* socket)
 		else
 		{
 			// send message to server
-			send (server_socket, message, strlen (message), 0);
+			int sent = send (server_socket, message, strlen (message), 0);
+			if(sent == 0)						// check if the connection is sill up
+			{		
+				pthread_exit(NULL);
+				break;									// stop reading for new messages
+			}
 			memset(message, 0, MSG_SIZE+1);
 		}
         
         // display message in top window
         mvwprintw(display_window, startingLine, 2, message);
+      }
+      
 	}
 }
 
@@ -291,7 +315,9 @@ void *recvMessage(void* socket)
 			}
 		}
 		else if(readMsg == 0)						// check if the connection is sill up
-		{			
+		{		
+			keepRunning = 0;	
+			serverKilled = 1;
 			// Server disconnected
 			break;									// stop reading for new messages
 		}

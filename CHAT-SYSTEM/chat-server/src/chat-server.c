@@ -19,6 +19,7 @@
 #include <unistd.h>		// to close socket
 #include <pthread.h>
 #include <time.h>		// to calculate current time
+#include <signal.h>
 
 
 
@@ -36,9 +37,11 @@ int removeClientFromArray(int sender);
 void formatMessage(char* message, int whichClient, int isSender);
 void getCurrentTime(char* whatTime);
 void shutdown_signal(int client_socket);
+void kill_signal(int signal_number);
 
 int main(void)
 {	
+	signal (SIGKILL, kill_signal);	// register the KILL command
 	
 	struct sockaddr_in server, client;
 	
@@ -103,6 +106,37 @@ int main(void)
   	}
 	
 	return 0;
+}
+
+/*
+	Function:		kill_signal()
+	Parameters:		int signal_number
+	Output:			NONE
+	Return value:	NONE	
+	Description:	This function is invoked when the server is killed by the user. This function invoked using Signals for SIGKILL command.
+					It ensures to close all client sockets, join all threads and close the server socket
+*/
+void kill_signal(int signal_number)
+{
+
+	for(int i = 0; i < numClients; i++)
+	{
+		close(sockets.clientSockets[i]); // close client connection
+	}
+
+	// join all threads
+	int numOfThreads = sizeof(client_thread[numClients].client_threads) / sizeof(client_thread[0].client_threads);
+
+	// wait for all clients to finish
+	for(int i = 0; i < numOfThreads; i++)
+	{
+		pthread_join(client_thread[numClients].client_threads, NULL);
+	}
+
+	// close server socket
+	close(sockets.server_socket);
+
+	exit(-1);
 }
 
 /*
