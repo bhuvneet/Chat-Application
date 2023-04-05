@@ -102,7 +102,7 @@ int main (int argc, char *argv[])
 		getmaxyx(stdscr, x, y);	// set up window dimensions
 		
 		// set up dimensions of screens
-		display_window 		= newwin(y/2, 90, 0, 0);
+		display_window 		= newwin(y/2, 100, 0, 0);
     	input_window 		= newwin(y/2, 90, x/2, 0);
     	scrollok(display_window,TRUE);
     	scrollok(input_window,TRUE);
@@ -242,7 +242,6 @@ void *sendMessage(void* socket)
 		{
 			// send message to server
 			send (server_socket, message, strlen (message), 0);
-			memset(message, 0, MSG_SIZE+1);
 		}
         
         // display message in top window
@@ -264,6 +263,9 @@ void *recvMessage(void* socket)
 	int server_socket = *((int*)socket);
 	int row = 1;
 	int col = INITIAL_COL;
+	
+	wrefresh(display_window);											// refresh window
+	wrefresh(input_window);
 	
 	while(keepRunning)
 	{
@@ -291,7 +293,13 @@ void *recvMessage(void* socket)
 			}
 		}
 		else if(readMsg == 0)						// check if the connection is sill up
-		{			
+		{	
+			// destroy windows
+			destroy_win(display_window);
+			destroy_win(input_window);
+			
+			// end window
+			endwin();		
 			// Server disconnected
 			break;									// stop reading for new messages
 		}
