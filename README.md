@@ -22,7 +22,7 @@ The project uses socket-based TCP/IP communication and is comprised of two appli
 <b>Message Length:</b>
 - Messages exceeding 80 characters should be broken at/near the 40-character boundary based on spaces between words.
 
-<b>Incoming Message Window:<b/>
+<b>Incoming Message Window:</b>
 - Incoming messages display the sender's IP address, user ID, message direction (>> for outgoing, << for incoming), message content, and a timestamp.
 
 <b>Real-time Messaging:</b>
